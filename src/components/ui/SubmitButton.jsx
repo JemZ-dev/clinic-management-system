@@ -1,0 +1,9 @@
+import Button from 'react-bootstrap/Button'
+import Spinner from 'react-bootstrap/Spinner'
+
+export default function SubmitButton({ busy, children, className = '' }) {
+  return <Button type="submit" className={`submit-button ${className}`} disabled={busy} aria-busy={busy}>
+    <span className={busy ? 'invisible' : ''}>{children}</span>
+    {busy && <span className="submit-progress"><Spinner animation="border" size="sm" aria-hidden="true" /><span className="visually-hidden">Saving, please wait</span></span>}
+  </Button>
+}

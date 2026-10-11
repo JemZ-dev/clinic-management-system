@@ -4,14 +4,25 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently --kill-others --names API,WEB \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "npm --prefix server run dev",
+    "start:server": "npm --prefix server start",
+    "check:db": "npm --prefix server run check:db",
+    "test:server": "npm --prefix server test",
+    "test:integration": "npm --prefix server run test:integration",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "axios": "^1.20.0",
+    "bootstrap": "^5.3.8",
+    "lucide-react": "^1.55.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.8",
+    "react-router": "^7.18.4"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -21,6 +32,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
+    "concurrently": "^10.0.6",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",

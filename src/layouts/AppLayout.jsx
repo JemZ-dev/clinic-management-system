@@ -1,0 +1,59 @@
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router'
+import Offcanvas from 'react-bootstrap/Offcanvas'
+import Button from 'react-bootstrap/Button'
+import Alert from 'react-bootstrap/Alert'
+import { LayoutDashboard, UserRound, Menu, LogOut } from 'lucide-react'
+import Brand from '../components/ui/Brand.jsx'
+import { useAuth } from '../hooks/useAuth.js'
+import { apiError } from '../lib/api.js'
+
+const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/profile', label: 'My profile', icon: UserRound }]
+
+function Navigation({ onNavigate }) {
+  return <nav className="clinic-nav" aria-label="Main navigation">{navigation.map(({ to, label, icon: Icon }) =>
+    <NavLink key={to} to={to} end onClick={onNavigate}><Icon size={19} aria-hidden="true" /><span>{label}</span></NavLink>
+  )}</nav>
+}
+
+export default function AppLayout() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const { user, logout } = useAuth()
+  const location = useLocation()
+  const initials = user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
+
+  useEffect(() => {
+    document.title = `${location.pathname === '/profile' ? 'My profile' : 'Workspace'} | Clinic management`
+    document.getElementById('main-content')?.focus({ preventScroll: true })
+  }, [location.pathname])
+
+  async function handleLogout() {
+    setBusy(true); setError('')
+    try { await logout() } catch (failure) { setError(apiError(failure)) } finally { setBusy(false) }
+  }
+
+  return <div className="app-layout">
+    <a className="skip-link" href="#main-content">Skip to main content</a>
+    <aside className="desktop-sidebar">
+      <Brand />
+      <Navigation />
+      <div className="sidebar-note">Clinic staff workspace</div>
+    </aside>
+    <Offcanvas show={menuOpen} onHide={() => setMenuOpen(false)} className="mobile-nav" aria-labelledby="mobile-menu-title">
+      <Offcanvas.Header closeButton><Offcanvas.Title id="mobile-menu-title"><Brand /></Offcanvas.Title></Offcanvas.Header>
+      <Offcanvas.Body><Navigation onNavigate={() => setMenuOpen(false)} /></Offcanvas.Body>
+    </Offcanvas>
+    <div className="app-body">
+      <header className="topbar">
+        <div className="topbar-context"><Button variant="link" className="mobile-menu-button" onClick={() => setMenuOpen(true)} aria-label="Open navigation"><Menu size={23} aria-hidden="true" /></Button><span>Staff workspace</span></div>
+        <div className="topbar-account"><span className="avatar" aria-hidden="true">{initials}</span><NavLink to="/profile" className="account-name">{user.name}</NavLink><Button variant="link" className="logout-button" onClick={handleLogout} disabled={busy}><LogOut size={17} aria-hidden="true" /><span>{busy ? 'Signing out…' : 'Sign out'}</span></Button></div>
+      </header>
+      <main id="main-content" className="main-content" tabIndex={-1}>
+        {error && <Alert variant="danger" role="alert">Sign-out failed. {error}</Alert>}
+        <Outlet />
+      </main>
+    </div>
+  </div>
+}

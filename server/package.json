@@ -1,0 +1,25 @@
+{
+  "name": "clinic-management-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "check:db": "node scripts/check-db.js",
+    "test": "node --test tests/health.test.js tests/password.test.js",
+    "test:integration": "node --test integration/auth.test.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.1",
+    "zod": "^4.6.5"
+  }
+}
