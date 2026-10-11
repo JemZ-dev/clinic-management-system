@@ -3,6 +3,9 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { browserSecurity } from './middleware/browserSecurity.js'
 import { authRoutes } from './routes/auth.js'
+import { recordRoutes } from './routes/records.js'
+import { appointmentRoutes } from './routes/appointments.js'
+import { dashboardRoutes } from './routes/dashboard.js'
 import { HttpError } from './utils/errors.js'
 
 export function createApp({ pingDatabase, authService, config }) {
@@ -18,6 +21,10 @@ export function createApp({ pingDatabase, authService, config }) {
   if (authService) {
     app.use('/api', browserSecurity(config.appOrigin, config.appOrigins))
     app.use('/api/auth', authRoutes(authService, config))
+    app.use('/api/patients', recordRoutes(authService, 'patients'))
+    app.use('/api/doctors', recordRoutes(authService, 'doctors'))
+    app.use('/api/appointments', appointmentRoutes(authService))
+    app.use('/api/dashboard', dashboardRoutes(authService))
   }
 
   app.get('/api/health', async (_request, response) => {

@@ -3,16 +3,16 @@ import { NavLink, Outlet, useLocation } from 'react-router'
 import Offcanvas from 'react-bootstrap/Offcanvas'
 import Button from 'react-bootstrap/Button'
 import Alert from 'react-bootstrap/Alert'
-import { LayoutDashboard, UserRound, Menu, LogOut } from 'lucide-react'
+import { LayoutDashboard, UserRound, UsersRound, Stethoscope, CalendarDays, Menu, LogOut } from 'lucide-react'
 import Brand from '../components/ui/Brand.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import { apiError } from '../lib/api.js'
 
-const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/profile', label: 'My profile', icon: UserRound }]
+const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/patients', label: 'Patients', icon: UsersRound }, { to: '/doctors', label: 'Doctors', icon: Stethoscope }, { to: '/appointments', label: 'Appointments', icon: CalendarDays }, { to: '/profile', label: 'My profile', icon: UserRound }]
 
 function Navigation({ onNavigate }) {
   return <nav className="clinic-nav" aria-label="Main navigation">{navigation.map(({ to, label, icon: Icon }) =>
-    <NavLink key={to} to={to} end onClick={onNavigate}><Icon size={19} aria-hidden="true" /><span>{label}</span></NavLink>
+    <NavLink key={to} to={to} end={to === '/' || to === '/profile'} onClick={onNavigate}><Icon size={19} aria-hidden="true" /><span>{label}</span></NavLink>
   )}</nav>
 }
 
@@ -25,11 +25,18 @@ export default function AppLayout() {
   const initials = user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
 
   useEffect(() => {
-    document.title = `${location.pathname === '/profile' ? 'My profile' : 'Workspace'} | Clinic management`
+    const section = navigation.find(({ to }) => to !== '/' && location.pathname.startsWith(to))?.label || 'Workspace'
+    const action = location.pathname.endsWith('/new') ? 'Add · ' : location.pathname.endsWith('/edit') ? 'Edit · ' : ''
+    document.title = `${action}${section} | Clinic management`
     document.getElementById('main-content')?.focus({ preventScroll: true })
   }, [location.pathname])
 
   async function handleLogout() {
+    const event = new CustomEvent('clinic-before-signout', { cancelable: true, detail: { proceed: performLogout } })
+    if (window.dispatchEvent(event)) await performLogout()
+  }
+
+  async function performLogout() {
     setBusy(true); setError('')
     try { await logout() } catch (failure) { setError(apiError(failure)) } finally { setBusy(false) }
   }

@@ -4,6 +4,9 @@ import { failureMessage, getAuthConfig, getConfig, loadLocalEnvironment } from '
 import { createAuthService } from './services/auth.js'
 import { User } from './models/User.js'
 import { Session } from './models/Session.js'
+import { Patient } from './models/Patient.js'
+import { Doctor } from './models/Doctor.js'
+import { Appointment } from './models/Appointment.js'
 
 let server
 let stopping = false
@@ -23,7 +26,7 @@ try {
   const config = getConfig()
   const authConfig = getAuthConfig()
   await connectDatabase(config)
-  await Promise.all([User.init(), Session.init()])
+  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init()])
   console.log('MongoDB connection verified.')
 
   const app = createApp({ pingDatabase, config: authConfig, authService: createAuthService(authConfig) })
