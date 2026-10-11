@@ -19,7 +19,7 @@ export function validate(schema, input) {
   if (result.success) return result.data
   const fields = {}
   for (const issue of result.error.issues) {
-    const field = issue.path[0]
+    const field = issue.path.join('.')
     if (field && !fields[field]) fields[field] = issue.message
   }
   throw new HttpError(400, 'Please check the form and try again.', fields)
