@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import Offcanvas from 'react-bootstrap/Offcanvas'
 import Button from 'react-bootstrap/Button'
 import Alert from 'react-bootstrap/Alert'
-import { LayoutDashboard, UserRound, UsersRound, Stethoscope, CalendarDays, Menu, LogOut } from 'lucide-react'
+import { LayoutDashboard, UserRound, UsersRound, Stethoscope, CalendarDays, ClipboardList, Menu, LogOut } from 'lucide-react'
 import Brand from '../components/ui/Brand.jsx'
+import AsyncState from '../components/ui/AsyncState.jsx'
 import { useAuth } from '../hooks/useAuth.js'
 import { apiError } from '../lib/api.js'
 
-const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/patients', label: 'Patients', icon: UsersRound }, { to: '/doctors', label: 'Doctors', icon: Stethoscope }, { to: '/appointments', label: 'Appointments', icon: CalendarDays }, { to: '/profile', label: 'My profile', icon: UserRound }]
+const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/patients', label: 'Patients', icon: UsersRound }, { to: '/doctors', label: 'Doctors', icon: Stethoscope }, { to: '/appointments', label: 'Appointments', icon: CalendarDays }, { to: '/visits', label: 'Visits', icon: ClipboardList }, { to: '/profile', label: 'My profile', icon: UserRound }]
 
 function Navigation({ onNavigate }) {
   return <nav className="clinic-nav" aria-label="Main navigation">{navigation.map(({ to, label, icon: Icon }) =>
@@ -59,7 +60,7 @@ export default function AppLayout() {
       </header>
       <main id="main-content" className="main-content" tabIndex={-1}>
         {error && <Alert variant="danger" role="alert">Sign-out failed. {error}</Alert>}
-        <Outlet />
+        <Suspense fallback={<AsyncState loading title="Loading page" message="Opening this clinic screen…" />}><Outlet /></Suspense>
       </main>
     </div>
   </div>

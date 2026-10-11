@@ -53,7 +53,7 @@ describe('patient and doctor workflows', () => {
   })
 
   it('preserves a rejected form, connects nested field errors, and redirects after a successful save', async () => {
-    vi.spyOn(api, 'get').mockResolvedValue(detail())
+    vi.spyOn(api, 'get').mockImplementation((path) => Promise.resolve(path.startsWith('/visits?') ? list() : detail()))
     const post = vi.spyOn(api, 'post').mockRejectedValueOnce({ response: { status: 400, data: { message: 'Please check the form and try again.', fields: { 'emergencyContact.phone': 'Enter a valid phone number.' } } } }).mockResolvedValueOnce(detail())
     const { user, router } = mount()
     await user.type(screen.getByLabelText(/Full name/), 'Fictional Patient')
@@ -76,7 +76,7 @@ describe('patient and doctor workflows', () => {
 
   it('prevents duplicate submissions and leaving while a save is pending', async () => {
     let resolveSave
-    vi.spyOn(api, 'get').mockResolvedValue(detail())
+    vi.spyOn(api, 'get').mockImplementation((path) => Promise.resolve(path.startsWith('/visits?') ? list() : detail()))
     const post = vi.spyOn(api, 'post').mockImplementation(() => new Promise((resolve) => { resolveSave = resolve }))
     const { user, router } = mount()
     await user.type(screen.getByLabelText(/Full name/), 'Fictional Patient')
@@ -94,7 +94,7 @@ describe('patient and doctor workflows', () => {
   })
 
   it('preserves conflicting edits and warns before opening the latest record', async () => {
-    vi.spyOn(api, 'get').mockResolvedValue(detail())
+    vi.spyOn(api, 'get').mockImplementation((path) => Promise.resolve(path.startsWith('/visits?') ? list() : detail()))
     const patch = vi.spyOn(api, 'patch').mockRejectedValue({ response: { status: 409, data: { message: 'This record changed since you opened it. Reload the latest record before trying again.' } } })
     const { user, router } = mount(`/patients/${id}/edit`)
     await screen.findByDisplayValue('Fictional Patient')
@@ -152,7 +152,8 @@ describe('patient and doctor workflows', () => {
 
   it('archives only after confirmation and preserves history on the refreshed page', async () => {
     const withHistory = { ...record, medicalHistory: { ...record.medicalHistory, allergies: 'Fictional allergy' } }
-    vi.spyOn(api, 'get').mockResolvedValueOnce(detail(withHistory)).mockResolvedValueOnce(detail({ ...withHistory, archivedAt: '2026-01-02T00:00:00Z', version: 5 }))
+    let detailReads = 0
+    vi.spyOn(api, 'get').mockImplementation((path) => Promise.resolve(path.startsWith('/visits?') ? list() : detail(detailReads++ === 0 ? withHistory : { ...withHistory, archivedAt: '2026-01-02T00:00:00Z', version: 5 })))
     const remove = vi.spyOn(api, 'delete').mockResolvedValue(detail())
     const { user } = mount(`/patients/${id}`)
     await screen.findByRole('heading', { name: 'Fictional Patient', level: 1 })

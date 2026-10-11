@@ -7,6 +7,7 @@ import { ArrowLeft, Pencil, Archive, RotateCcw, CalendarDays } from 'lucide-reac
 import useApiResource from '../../hooks/useApiResource.js'
 import { api, apiError } from '../../lib/api.js'
 import AsyncState from '../ui/AsyncState.jsx'
+import VisitList from '../../features/visits/components/VisitList.jsx'
 
 function Detail({ label, value }) {
   return <div><dt>{label}</dt><dd className={!value ? 'not-recorded' : ''}>{value || 'Not recorded'}</dd></div>
@@ -36,8 +37,8 @@ function RecordDetails({ config, record, reload }) {
   return <>
     <Link to={backTo} className="record-back"><ArrowLeft size={16} aria-hidden="true" />Back to {config.kind}</Link>
     <header className="page-heading record-heading"><div><h1>{record.name}</h1><p>{patient ? record.patientId : record.specialty} · <span className={`record-status ${archived ? 'archived' : ''}`}>{archived ? 'Archived' : 'Active'}</span></p></div><div className="record-actions">
-      {!archived && <Button as={Link} to={`/${config.kind}/${record.id}/edit`} state={{ backTo }}><Pencil size={16} aria-hidden="true" />Edit {config.singular}</Button>}
-      {!archived && <Button as={Link} variant="outline-secondary" to="/appointments/new" state={{ [patient ? 'patient' : 'doctor']: record }}><CalendarDays size={16} aria-hidden="true" />Book appointment</Button>}
+      {!archived && <Button as={Link} role="link" to={`/${config.kind}/${record.id}/edit`} state={{ backTo }}><Pencil size={16} aria-hidden="true" />Edit {config.singular}</Button>}
+      {!archived && <Button as={Link} role="link" variant="outline-secondary" to="/appointments/new" state={{ [patient ? 'patient' : 'doctor']: record }}><CalendarDays size={16} aria-hidden="true" />Book appointment</Button>}
       <Button variant="outline-secondary" onClick={() => { setError(''); setConflict(false); setConfirm(true) }}>{archived ? <RotateCcw size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />}{archived ? 'Restore' : 'Archive'}</Button>
     </div></header>
     {(notice || location.state?.notice) && <Alert variant="success" role="status">{notice || location.state.notice}</Alert>}
@@ -52,6 +53,7 @@ function RecordDetails({ config, record, reload }) {
     </div>
     {patient && <section className="workspace-section" aria-labelledby="history-title"><h2 id="history-title">Medical history</h2><p className="section-description">A blank field means the information has not been recorded.</p><dl className="medical-history-grid"><Detail label="Allergies" value={record.medicalHistory?.allergies} /><Detail label="Existing conditions" value={record.medicalHistory?.conditions} /><Detail label="Past surgeries" value={record.medicalHistory?.pastSurgeries} /><Detail label="Current medications" value={record.medicalHistory?.currentMedications} /></dl></section>}
     <p className="record-meta">Last updated {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }).format(new Date(record.updatedAt))} (Manila time).</p>
+    {patient && <><div className="record-actions mb-3">{!archived && <Button as={Link} role="link" to="/visits/new" state={{ patient: record }} variant="outline-secondary">Record visit without appointment</Button>}</div><VisitList key={record.id} patientId={record.id} embedded /></>}
     <Modal show={confirm} onHide={() => { if (!busy) setConfirm(false) }} centered backdrop={busy ? 'static' : true} keyboard={!busy} aria-labelledby="archive-title">
       <Modal.Header closeButton={!busy}><Modal.Title id="archive-title">{archived ? 'Restore' : 'Archive'} {config.singular}?</Modal.Title></Modal.Header>
       <Modal.Body><p className="mb-0">{archived ? `${record.name} will return to the active directory.` : `${record.name} will be removed from the active directory. Their record and history will be preserved, and you can restore them later.`}</p>{error && <Alert variant="danger" className="mt-3 mb-0" role="alert">{error}{conflict && <Button variant="link" onClick={() => { setConfirm(false); reload() }}>Reload record</Button>}</Alert>}</Modal.Body>

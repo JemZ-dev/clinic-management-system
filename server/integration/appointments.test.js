@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import test from 'node:test'
 import mongoose from 'mongoose'
@@ -12,6 +12,7 @@ import { Session } from '../src/models/Session.js'
 import { Patient } from '../src/models/Patient.js'
 import { Doctor } from '../src/models/Doctor.js'
 import { Appointment } from '../src/models/Appointment.js'
+import { Visit } from '../src/models/Visit.js'
 import { clinicDate, clinicDayRange, appointmentStart, SLOT_MS } from '../src/utils/clinicTime.js'
 
 test('appointment HTTP workflows reject concurrent conflicts and preserve cancelled/history records', async (t) => {
@@ -26,7 +27,7 @@ test('appointment HTTP workflows reject concurrent conflicts and preserve cancel
     await disconnectDatabase()
   })
   await connectDatabase({ ...getConfig(), dbName }); connected = true
-  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init()])
+  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init(), Visit.init()])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`
@@ -122,7 +123,10 @@ test('appointment HTTP workflows reject concurrent conflicts and preserve cancel
   assert.equal(dashboard.statuses.checked_in, 1)
   assert.equal(dashboard.todayTotal, 1)
   assert.equal(dashboard.appointments[0].id, seeded.id)
-  const completion = await call(`/appointments/${seeded.id}/status`, 'PATCH', { status: 'completed', version: 1 })
+  assert.equal((await call(`/appointments/${seeded.id}/status`, 'PATCH', { status: 'completed', version: 1 })).status, 409)
+  const visit = await call('/visits', 'POST', { requestId: randomUUID(), patientId: patients[0].id, doctorId: doctors[0].id, appointmentId: seeded.id, appointmentVersion: 1, date: today, reason: 'Fictional consultation' })
+  assert.equal(visit.status, 201)
+  const completion = await call(`/appointments/${seeded.id}/status`, 'PATCH', { status: 'completed', version: 2 })
   assert.equal(completion.status, 200)
   assert.equal((await completion.json()).record.statusHistory.length, 3)
   const noShowStart = new Date(range.start.valueOf() + SLOT_MS)

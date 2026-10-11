@@ -144,6 +144,17 @@ dd { font-size: 16px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .not-recorded { color: var(--text-secondary); font-size: 14px; }
 .medical-history-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 .record-form { max-width: 920px; }
+.visit-table { min-width: 640px; }
+.patient-visit-history .visit-table { min-width: 480px; }
+.visit-history-heading { padding: 24px; border-bottom: 1px solid var(--border); }
+.visit-history-heading h2 { margin: 0 0 8px; font-size: 20px; }
+.visit-history-heading p { margin: 0; color: var(--text-secondary); }
+.visit-notes { margin: 24px 0 0; }
+.visit-notes > div + div { margin-top: 24px; }
+.visit-notes dt { font-weight: 600; margin-bottom: 8px; }
+.visit-notes dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.visit-addendum-form { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 24px; }
+.visit-addendum-form .record-field { margin-bottom: 16px; }
 .record-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .record-field { min-width: 0; }
 .record-field.full-width { grid-column: 1 / -1; }
