@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { createBrowserRouter, createRoutesFromElements, Link, Outlet, Route, RouterProvider } from 'react-router'
 import AuthProvider from '../context/AuthProvider.jsx'
 import ProtectedRoute, { AuthReady } from './ProtectedRoute.jsx'
@@ -13,8 +14,12 @@ import { patientsConfig } from '../features/patients/patients.config.js'
 import { doctorsConfig } from '../features/doctors/doctors.config.js'
 import AsyncState from '../components/ui/AsyncState.jsx'
 import AppointmentsPage from '../features/appointments/pages/AppointmentsPage.jsx'
-import AppointmentFormPage from '../features/appointments/pages/AppointmentFormPage.jsx'
 import AppointmentDetailsPage from '../features/appointments/pages/AppointmentDetailsPage.jsx'
+
+const AppointmentFormPage = lazy(() => import('../features/appointments/pages/AppointmentFormPage.jsx'))
+const VisitsPage = lazy(() => import('../features/visits/pages/VisitsPage.jsx'))
+const VisitFormPage = lazy(() => import('../features/visits/pages/VisitFormPage.jsx'))
+const VisitDetailsPage = lazy(() => import('../features/visits/pages/VisitDetailsPage.jsx'))
 
 function Root() { return <AuthProvider><AuthReady><Outlet /></AuthReady></AuthProvider> }
 
@@ -27,6 +32,11 @@ const router = createBrowserRouter(createRoutesFromElements(
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route index element={<WorkspacePage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="visits">
+        <Route index element={<VisitsPage />} />
+        <Route path="new" element={<VisitFormPage />} />
+        <Route path=":id" element={<VisitDetailsPage />} />
+      </Route>
       <Route path="appointments">
         <Route index element={<AppointmentsPage />} />
         <Route path="new" element={<AppointmentFormPage />} />

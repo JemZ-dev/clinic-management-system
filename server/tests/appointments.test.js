@@ -29,6 +29,7 @@ test('status transitions reject terminal reopening, future no-shows, and wrong-d
   assert.throws(() => validateTransition(scheduled, 'no_show', onDay), { status: 400 })
   assert.doesNotThrow(() => validateTransition(scheduled, 'no_show', startsAt))
   assert.throws(() => validateTransition(scheduled, 'completed', startsAt), { status: 409 })
-  assert.doesNotThrow(() => validateTransition({ ...scheduled, status: 'checked_in' }, 'completed', startsAt))
+  assert.throws(() => validateTransition({ ...scheduled, status: 'checked_in' }, 'completed', startsAt), { status: 409 })
+  assert.doesNotThrow(() => validateTransition({ ...scheduled, status: 'checked_in', visitId: '0123456789abcdef01234567' }, 'completed', startsAt))
   for (const status of ['completed', 'cancelled', 'no_show']) assert.throws(() => validateTransition({ ...scheduled, status }, 'checked_in', startsAt), { status: 409 })
 })

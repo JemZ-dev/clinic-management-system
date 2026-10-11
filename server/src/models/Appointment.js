@@ -11,6 +11,7 @@ const schema = new mongoose.Schema({
   doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
   startsAt: { type: Date, required: true }, endsAt: { type: Date, required: true },
   reason: { type: String, trim: true, maxlength: 500, default: '' },
+  visitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Visit', default: null },
   status: { type: String, enum: ['scheduled', 'checked_in', 'completed', 'cancelled', 'no_show'], default: 'scheduled', required: true },
   statusHistory: { type: [historySchema], required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

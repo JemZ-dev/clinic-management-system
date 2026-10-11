@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth.js'
 import { recordRoutes } from './routes/records.js'
 import { appointmentRoutes } from './routes/appointments.js'
 import { dashboardRoutes } from './routes/dashboard.js'
+import { visitRoutes } from './routes/visits.js'
 import { HttpError } from './utils/errors.js'
 
 export function createApp({ pingDatabase, authService, config }) {
@@ -25,6 +26,7 @@ export function createApp({ pingDatabase, authService, config }) {
     app.use('/api/doctors', recordRoutes(authService, 'doctors'))
     app.use('/api/appointments', appointmentRoutes(authService))
     app.use('/api/dashboard', dashboardRoutes(authService))
+    app.use('/api/visits', visitRoutes(authService))
   }
 
   app.get('/api/health', async (_request, response) => {

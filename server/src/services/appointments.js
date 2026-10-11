@@ -22,7 +22,7 @@ export function publicAppointment(document, summary = false) {
     doctor: doctor ? { id: doctor._id.toString(), name: doctor.name, specialty: doctor.specialty, archivedAt: doctor.archivedAt } : null,
     startsAt: value.startsAt, endsAt: value.endsAt, status: value.status,
     ...(!summary ? {
-      reason: value.reason, editable: value.status === 'scheduled',
+      reason: value.reason, editable: value.status === 'scheduled', visitId: value.visitId?.toString() || null,
       availableTransitions: transitions[value.status].filter((status) => {
         try { validateTransition(value, status); return true } catch { return false }
       }),
@@ -78,6 +78,7 @@ export async function updateAppointment(id, data, userId, now = new Date()) {
 
 export function validateTransition(appointment, status, now = new Date()) {
   if (!transitions[appointment.status]?.includes(status)) throw new HttpError(409, 'This status change is not allowed. Open the latest appointment.')
+  if (status === 'completed' && !appointment.visitId) throw new HttpError(409, 'Save a visit record before completing this appointment.')
   if (status === 'checked_in' && clinicDate(appointment.startsAt) !== clinicDate(now)) throw new HttpError(400, 'Check-in is available only on the appointment day (Manila time).')
   if (status === 'no_show' && appointment.startsAt.valueOf() > now.valueOf()) throw new HttpError(400, 'Mark no-show only after the appointment start time.')
 }
