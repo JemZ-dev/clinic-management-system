@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import Form from 'react-bootstrap/Form'
 import Alert from 'react-bootstrap/Alert'
 import Button from 'react-bootstrap/Button'
-import { Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth.js'
 import { apiError } from '../../../lib/api.js'
 import { register, signIn } from '../auth.api.js'
@@ -41,6 +41,7 @@ export default function AuthPage({ registration = false }) {
   }
 
   return <>
+    {registration && <Link to="/login" className="auth-back-link"><ArrowLeft size={18} aria-hidden="true" /><span>Back to sign in</span></Link>}
     <div className="auth-heading">
       <h1>{registration ? 'Create your staff account' : 'Welcome back'}</h1>
       <p>{registration ? 'Register using the access code supplied by your clinic administrator.' : 'Sign in to your clinic workspace.'}</p>

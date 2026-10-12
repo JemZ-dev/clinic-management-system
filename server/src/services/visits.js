@@ -4,6 +4,8 @@ import { Visit } from '../models/Visit.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
 import { Appointment } from '../models/Appointment.js'
+import { Medicine } from '../models/Medicine.js'
+import { medicineSnapshot } from './medicines.js'
 import { HttpError } from '../utils/errors.js'
 import { clinicDate } from '../utils/clinicTime.js'
 
@@ -17,6 +19,7 @@ export function publicVisit(document, summary = false) {
     ...(!summary ? {
       reason: value.reason, diagnosis: value.diagnosis, notes: value.notes, treatment: value.treatment,
       prescribedMedicines: value.prescribedMedicines, followUp: value.followUp,
+      prescriptions: (value.prescriptions || []).map((line) => ({ id: line._id.toString(), medicineId: line.medicineId.toString(), medicine: line.medicine, quantity: line.quantity, instructions: line.instructions, dispensedQuantity: line.dispensedQuantity, remainingQuantity: line.quantity - line.dispensedQuantity })),
       author: { name: value.author.name },
       addenda: value.addenda.map(({ text, at, author }) => ({ text, at, author: { name: author.name } })),
       canAddAddendum: value.addenda.length < 20,
@@ -34,8 +37,9 @@ function retryResult(existing, digest, userId) {
 }
 
 export async function createVisit(data, user) {
-  const { requestId, appointmentVersion, appointmentId, ...fields } = data
-  const digest = createHash('sha256').update(JSON.stringify({ ...fields, appointmentId: appointmentId || null })).digest('hex')
+  const { requestId, appointmentVersion, appointmentId, prescriptions, ...fields } = data
+  // Omit an empty catalog list from the digest so earlier text-only save retries remain valid.
+  const digest = createHash('sha256').update(JSON.stringify({ ...fields, ...(prescriptions.length ? { prescriptions } : {}), appointmentId: appointmentId || null })).digest('hex')
   const existing = await Visit.findOne({ requestId })
   if (existing) return retryResult(existing, digest, user.id)
   let saved
@@ -57,8 +61,14 @@ export async function createVisit(data, user) {
         const linked = await Appointment.findOneAndUpdate({ _id: appointmentId, __v: appointmentVersion, status: 'checked_in', visitId: null }, { $set: { visitId, updatedBy: user.id }, $inc: { __v: 1 } }, { session, returnDocument: 'after' })
         if (!linked) throw new HttpError(409, 'This appointment changed or already has a visit. Reload the appointment before continuing.')
       }
+      const savedPrescriptions = []
+      for (const [index, line] of prescriptions.entries()) {
+        const medicine = await Medicine.findOneAndUpdate({ _id: line.medicineId, archivedAt: null, productKey: line.productKey }, { $set: { identityLocked: true, updatedBy: user.id }, $inc: { __v: 1 } }, { session, returnDocument: 'after' })
+        if (!medicine) throw new HttpError(400, 'A selected medicine changed or is archived. Re-select it before saving.', { [`prescriptions.${index}.medicineId`]: 'Choose the current active catalog product.' })
+        savedPrescriptions.push({ medicineId: medicine.id, medicine: medicineSnapshot(medicine), quantity: line.quantity, instructions: line.instructions, dispensedQuantity: 0 })
+      }
       const records = await Visit.create([{
-        _id: visitId, ...fields, appointmentId: appointmentId || null,
+        _id: visitId, ...fields, prescriptions: savedPrescriptions, appointmentId: appointmentId || null,
         patientSnapshot: { name: patient.name, patientId: patient.patientId }, doctorSnapshot: { name: doctor.name, specialty: doctor.specialty },
         author: { id: user.id, name: user.name }, createdBy: user.id, requestId, requestDigest: digest,
       }], { session })

@@ -9,6 +9,7 @@ import UnsavedChanges from '../../../components/records/UnsavedChanges.jsx'
 import SubmitButton from '../../../components/ui/SubmitButton.jsx'
 import AsyncState from '../../../components/ui/AsyncState.jsx'
 import RecordPicker from '../../appointments/components/RecordPicker.jsx'
+import PrescriptionEditor from '../components/PrescriptionEditor.jsx'
 import useApiResource from '../../../hooks/useApiResource.js'
 import { api, apiError } from '../../../lib/api.js'
 import { clinicToday, appointmentFields, formatClinicDate } from '../../../lib/clinicTime.js'
@@ -16,7 +17,7 @@ import { clinicToday, appointmentFields, formatClinicDate } from '../../../lib/c
 function VisitForm({ appointment }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [initial] = useState(() => ({ patientId: appointment?.patientId || location.state?.patient?.id || '', doctorId: appointment?.doctorId || '', date: clinicToday(), reason: appointment?.reason || '', diagnosis: '', notes: '', treatment: '', prescribedMedicines: '', followUp: '' }))
+  const [initial] = useState(() => ({ patientId: appointment?.patientId || location.state?.patient?.id || '', doctorId: appointment?.doctorId || '', date: clinicToday(), reason: appointment?.reason || '', diagnosis: '', notes: '', treatment: '', prescribedMedicines: '', followUp: '', prescriptions: [] }))
   const [values, setValues] = useState(initial)
   const [patient, setPatient] = useState(appointment?.patient || location.state?.patient || null)
   const [doctor, setDoctor] = useState(appointment?.doctor || null)
@@ -32,7 +33,7 @@ function VisitForm({ appointment }) {
   async function save(event) {
     event.preventDefault(); setBusy(true); setError(''); setErrors({}); setConflict(false)
     try {
-      const { data } = await api.post('/visits', { ...values, requestId, ...(appointment ? { appointmentId: appointment.id, appointmentVersion: appointment.version } : {}) })
+      const { data } = await api.post('/visits', { ...values, prescriptions: values.prescriptions.map(({ medicineId, productKey, quantity, instructions }) => ({ medicineId, productKey, quantity: Number(quantity), instructions })), requestId, ...(appointment ? { appointmentId: appointment.id, appointmentVersion: appointment.version } : {}) })
       guard.current = false
       navigate(`/visits/${data.record.id}`, { replace: true, state: { backTo, notice: 'Visit saved successfully.' } })
     } catch (failure) {
@@ -55,6 +56,7 @@ function VisitForm({ appointment }) {
         </section>
         <section className="workspace-section" aria-labelledby="visit-notes-title"><h2 id="visit-notes-title">Consultation</h2><p className="section-description">Leave unknown details blank. Enter only findings supplied by the attending clinician.</p><div className="record-form-grid">{field('reason', 'Reason for visit', 500)}{field('diagnosis', 'Recorded diagnosis', 2000)}{field('notes', 'Consultation notes', 4000)}</div></section>
         <section className="workspace-section" aria-labelledby="visit-treatment-title"><h2 id="visit-treatment-title">Treatment and follow-up</h2><div className="record-form-grid">{field('treatment', 'Treatment provided', 4000)}{field('prescribedMedicines', 'Prescribed medicines', 2000, 'Record the clinician’s prescription details. This entry does not dispense stock.')}{field('followUp', 'Follow-up instructions', 2000)}</div></section>
+        <PrescriptionEditor value={values.prescriptions} errors={errors} onChange={(value) => change('prescriptions', value)} />
         <p className="record-meta">Saved details are preserved. Use a dated correction or additional note to clarify a saved visit.</p>
         <div className="record-form-actions"><SubmitButton busy={busy}>Save visit</SubmitButton><Button variant="outline-secondary" as={Link} role="link" to={backTo} onClick={(event) => { if (busy) event.preventDefault() }}>Cancel</Button></div>
       </fieldset>

@@ -34,3 +34,19 @@ test('production requires HTTPS and secrets cannot be empty', () => {
   assert.deepEqual(production.appOrigins, ['https://clinic.example'])
   assert.deepEqual(getAuthConfig({ ...env, NODE_ENV: 'development' }).appOrigins, ['http://localhost:5173', 'http://127.0.0.1:5173'])
 })
+
+test('staff profile validates personal and work details without requiring optional fields', () => {
+  const base = { name: 'Fictional Staff', phone: '' }
+  assert.deepEqual(validate(profileSchema, base), base)
+  const parsed = validate(profileSchema, { ...base, gender: 'prefer_not_to_say', dateOfBirth: '2000-02-29', jobTitle: ' Receptionist ', department: ' Front desk ', workLocation: ' Main clinic ' })
+  assert.equal(parsed.jobTitle, 'Receptionist')
+  assert.equal(parsed.department, 'Front desk')
+  assert.equal(parsed.workLocation, 'Main clinic')
+  for (const dateOfBirth of ['2001-02-29', '2000-04-31', '2999-01-01', '1899-12-31']) {
+    assert.throws(() => validate(profileSchema, { ...base, dateOfBirth }), (error) => error.status === 400 && !!error.fields.dateOfBirth)
+  }
+  assert.throws(() => validate(profileSchema, { ...base, gender: 'administrator' }), { status: 400 })
+  assert.throws(() => validate(profileSchema, { ...base, department: 'x'.repeat(101) }), { status: 400 })
+  assert.throws(() => validate(profileSchema, { ...base, workLocation: 'x'.repeat(161) }), { status: 400 })
+  assert.equal(validate(profileSchema, { ...base, dateOfBirth: '', gender: '', jobTitle: '', department: '', workLocation: '' }).dateOfBirth, '')
+})

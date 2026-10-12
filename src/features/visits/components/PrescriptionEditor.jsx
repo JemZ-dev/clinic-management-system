@@ -1,0 +1,24 @@
+import { useState } from 'react'
+import { Link } from 'react-router'
+import Form from 'react-bootstrap/Form'
+import Button from 'react-bootstrap/Button'
+import useApiResource from '../../../hooks/useApiResource.js'
+import AsyncState from '../../../components/ui/AsyncState.jsx'
+import RecordField from '../../../components/records/RecordField.jsx'
+import StockStatus from '../../medicines/components/StockStatus.jsx'
+import { medicineLabel } from '../../../lib/medicine.js'
+
+export default function PrescriptionEditor({ value, onChange, errors }) {
+  const [search, setSearch] = useState(''), [q, setQ] = useState(''), [page, setPage] = useState(1)
+  const resource = useApiResource(`/medicines?${new URLSearchParams({ status: 'active', q, page: String(page), limit: '10' })}`)
+  function update(index, field, entry) { onChange(value.map((line, position) => position === index ? { ...line, [field]: entry } : line)) }
+  const pagination = resource.data?.pagination
+  const records = resource.data?.records || []
+  return <section className="workspace-section" aria-labelledby="catalog-prescriptions-title"><h2 id="catalog-prescriptions-title">Catalog prescriptions</h2><p className="section-description">Select the exact product and record the clinician’s quantity and instructions. Saving a prescription does not change stock. Review patient history and allergies before recording.</p>
+    {errors.prescriptions && <p role="alert" className="text-danger">{errors.prescriptions}</p>}
+    {value.map((line, index) => <div className="prescription-line" key={line.medicineId}><div className="section-heading"><h3>{medicineLabel(line.medicine)}</h3><Button type="button" variant="outline-secondary" onClick={() => onChange(value.filter((_line, position) => position !== index))} aria-label={`Remove ${line.medicine.genericName}`}>Remove</Button></div>{errors[`prescriptions.${index}.medicineId`] && <p className="text-danger" role="alert">{errors[`prescriptions.${index}.medicineId`]}</p>}<div className="record-form-grid"><RecordField name={`prescriptions.${index}.quantity`} label={`Prescribed quantity (${line.medicine.stockUnit})`} value={line.quantity} errors={errors} onChange={(_name, entry) => update(index, 'quantity', entry)} required type="number" min={1} max={1000000} step={1} /><RecordField name={`prescriptions.${index}.instructions`} label="Prescription instructions" value={line.instructions} errors={errors} onChange={(_name, entry) => update(index, 'instructions', entry)} required multiline maxLength={1000} help="Copy the clinician’s directions, including dose, route, frequency, and duration as supplied." /></div></div>)}
+    <div className="record-search medicine-picker-search"><Form.Group controlId="prescription-medicine-search"><Form.Label>Find a catalog medicine</Form.Label><Form.Control type="search" value={search} maxLength={100} placeholder="Generic name or brand" onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); setQ(search.trim()); setPage(1) } }} /></Form.Group><Button type="button" variant="outline-secondary" onClick={() => { setQ(search.trim()); setPage(1) }}>Search medicines</Button></div>
+    {resource.loading ? <AsyncState loading title="Loading medicine catalog" message="Fetching active products…" /> : resource.error ? <AsyncState title="Unable to load medicine catalog" message={resource.error} onRetry={resource.reload} /> : !records.length ? <p role="status">{q ? 'No matching medicines.' : 'No active medicines in the catalog.'} <Link to="/medicines">View medicine catalog</Link>. You can save a visit without a catalog prescription.</p> : <><ul className="medicine-picker-results">{records.map((record) => { const selected = value.some((line) => line.medicineId === record.id); return <li key={record.id}><div><strong>{medicineLabel(record)}</strong><span className="record-meta">{record.quantity.toLocaleString()} {record.stockUnit} available · <StockStatus record={record} /></span></div><Button type="button" variant="outline-secondary" disabled={selected || value.length >= 20} aria-label={`Add ${medicineLabel(record)}`} onClick={() => onChange([...value, { medicineId: record.id, productKey: record.productKey, medicine: record, quantity: '', instructions: '' }])}>{selected ? 'Added' : 'Add'}</Button></li> })}</ul>{pagination && pagination.pages > 1 && <nav className="page-controls" aria-label="Medicine picker pages"><Button type="button" variant="outline-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous medicines</Button><span>Page {pagination.page} of {pagination.pages}</span><Button type="button" variant="outline-secondary" disabled={page >= pagination.pages} onClick={() => setPage(page + 1)}>Next medicines</Button></nav>}</>}
+    {value.length >= 20 && <p role="status">A visit can contain up to 20 catalog prescriptions.</p>}
+  </section>
+}

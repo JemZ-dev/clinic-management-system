@@ -20,6 +20,10 @@ const AppointmentFormPage = lazy(() => import('../features/appointments/pages/Ap
 const VisitsPage = lazy(() => import('../features/visits/pages/VisitsPage.jsx'))
 const VisitFormPage = lazy(() => import('../features/visits/pages/VisitFormPage.jsx'))
 const VisitDetailsPage = lazy(() => import('../features/visits/pages/VisitDetailsPage.jsx'))
+const MedicinesPage = lazy(() => import('../features/medicines/pages/MedicinesPage.jsx'))
+const MedicineFormPage = lazy(() => import('../features/medicines/pages/MedicineFormPage.jsx'))
+const MedicineDetailsPage = lazy(() => import('../features/medicines/pages/MedicineDetailsPage.jsx'))
+const InventoryPage = lazy(() => import('../features/inventory/pages/InventoryPage.jsx'))
 
 function Root() { return <AuthProvider><AuthReady><Outlet /></AuthReady></AuthProvider> }
 
@@ -32,6 +36,13 @@ const router = createBrowserRouter(createRoutesFromElements(
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route index element={<WorkspacePage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="medicines">
+        <Route index element={<MedicinesPage />} />
+        <Route path="new" element={<MedicineFormPage />} />
+        <Route path=":id" element={<MedicineDetailsPage />} />
+        <Route path=":id/edit" element={<MedicineFormPage editing />} />
+      </Route>
+      <Route path="inventory" element={<InventoryPage />} />
       <Route path="visits">
         <Route index element={<VisitsPage />} />
         <Route path="new" element={<VisitFormPage />} />

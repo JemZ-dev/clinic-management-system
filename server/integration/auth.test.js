@@ -72,6 +72,23 @@ test('authentication and profile flow against an isolated Atlas database', async
   assert.equal(updated.status, 200)
   assert.equal((await (await call('/me', { cookie })).json()).user.name, 'Updated Fictional Staff')
   assert.equal((await User.findById(data.user.id)).phone, '+63 900 000 0000')
+  const profileDetails = { name: 'Updated Fictional Staff', phone: '+63 900 000 0000', gender: 'non_binary', dateOfBirth: '2000-02-29', jobTitle: 'Receptionist', department: 'Front desk', workLocation: 'Main clinic' }
+  const profileSave = await call('/profile', { method: 'PATCH', cookie, body: profileDetails })
+  assert.equal(profileSave.status, 200)
+  const profileUser = (await profileSave.json()).user
+  const profileStored = await User.findById(data.user.id)
+  for (const [key, value] of Object.entries(profileDetails)) { assert.equal(profileUser[key], value); assert.equal(profileStored[key], value) }
+  assert.ok(profileUser.updatedAt)
+  assert.equal(profileUser.role, 'staff')
+  const invalidBirthday = await call('/profile', { method: 'PATCH', cookie, body: { ...profileDetails, dateOfBirth: '2001-02-29' } })
+  assert.equal(invalidBirthday.status, 400)
+  assert.ok((await invalidBirthday.json()).fields.dateOfBirth)
+  assert.equal((await User.findById(data.user.id)).dateOfBirth, '2000-02-29')
+  assert.equal((await call('/profile', { method: 'PATCH', cookie, body: { name: profileDetails.name, phone: profileDetails.phone } })).status, 200)
+  assert.equal((await User.findById(data.user.id)).department, 'Front desk', 'older profile clients do not erase new fields')
+  const reloadedProfile = (await (await call('/me', { cookie })).json()).user
+  assert.equal(reloadedProfile.gender, 'non_binary')
+  assert.equal(reloadedProfile.workLocation, 'Main clinic')
 
   const tampered = `${cookie.slice(0, -1)}!`
   assert.equal((await call('/me', { cookie: tampered })).status, 401)
@@ -85,6 +102,13 @@ test('authentication and profile flow against an isolated Atlas database', async
   assert.equal(login.status, 200)
   const nextCookie = login.headers.get('set-cookie').split(';')[0]
   assert.equal((await (await call('/me', { cookie: nextCookie })).json()).user.name, 'Updated Fictional Staff')
+  const nextProfile = (await (await call('/me', { cookie: nextCookie })).json()).user
+  assert.equal(nextProfile.dateOfBirth, '2000-02-29')
+  assert.equal(nextProfile.jobTitle, 'Receptionist')
+  const clearProfile = await call('/profile', { method: 'PATCH', cookie: nextCookie, body: { ...profileDetails, gender: '', dateOfBirth: '', jobTitle: '', department: '', workLocation: '' } })
+  assert.equal(clearProfile.status, 200)
+  const cleared = await User.findById(data.user.id)
+  for (const key of ['gender', 'dateOfBirth', 'jobTitle', 'department', 'workLocation']) assert.equal(cleared[key], '')
   assert.equal((await call('/logout', { method: 'POST', cookie: nextCookie, body: {} })).status, 204)
 
   for (let attempt = 0; attempt < 21; attempt++) {

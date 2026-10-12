@@ -155,4 +155,30 @@ describe('appointment and dashboard components', () => {
     expect(screen.getByRole('heading', { name: 'No active appointments today' })).toBeTruthy()
     await waitFor(() => expect(screen.getByRole('link', { name: 'View schedule' }).getAttribute('href')).toContain(`date=${data.date}`))
   })
+  it('guides staff to the missing doctor directory before booking and updates the action after refresh', async () => {
+    const data = { date: clinicToday(), patients: 1, doctors: 0, todayTotal: 0, waiting: 0, statuses: { scheduled: 0, checked_in: 0, completed: 0, cancelled: 0, no_show: 0 }, appointments: [] }
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ data }).mockResolvedValueOnce({ data: { ...data, doctors: 1 } })
+    const { user } = mount('/')
+    await screen.findByRole('heading', { name: 'Set up your clinic records' })
+    expect(screen.getByRole('link', { name: 'Add your first doctor' }).getAttribute('href')).toBe('/doctors/new')
+    expect(screen.queryByRole('link', { name: 'Book appointment', exact: true })).toBeNull()
+    expect(screen.queryByLabelText("Today's appointment status totals")).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Refresh' }))
+    await screen.findByRole('heading', { name: 'Quick actions' })
+    expect(screen.getByRole('link', { name: 'Book appointment', exact: true }).getAttribute('href')).toBe('/appointments/new')
+    expect(screen.queryByRole('link', { name: 'Add your first doctor' })).toBeNull()
+  })
+  it('keeps populated schedules and outcome filters available alongside the new action column', async () => {
+    const todayRecord = { ...record, startsAt: `${clinicToday()}T09:00:00+08:00`, endsAt: `${clinicToday()}T09:30:00+08:00` }
+    const data = { date: clinicToday(), patients: 1, doctors: 1, todayTotal: 1, waiting: 0, statuses: { scheduled: 1, checked_in: 0, completed: 0, cancelled: 0, no_show: 0 }, appointments: [todayRecord] }
+    vi.spyOn(api, 'get').mockResolvedValue({ data })
+    mount('/')
+    const table = await screen.findByRole('table')
+    expect(within(table).getByText(patient.name)).toBeTruthy()
+    expect(within(table).getByRole('link', { name: `View appointment for ${patient.name}` }).getAttribute('href')).toBe(`/appointments/${id}`)
+    const outcomes = screen.getByLabelText("Today's appointment status totals")
+    expect(within(outcomes).getByRole('link', { name: 'Scheduled 1' }).getAttribute('href')).toContain('status=scheduled')
+    expect(screen.getByRole('heading', { name: 'Quick actions' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'No active appointments today' })).toBeNull()
+  })
 })
