@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import DirectorySearch from '../../../components/ui/DirectorySearch.jsx'
+import PaginationControls from '../../../components/ui/PaginationControls.jsx'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import Form from 'react-bootstrap/Form'
 import Button from 'react-bootstrap/Button'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import AsyncState from '../../../components/ui/AsyncState.jsx'
 import useApiResource from '../../../hooks/useApiResource.js'
 import AppointmentTable from '../components/AppointmentTable.jsx'
@@ -10,8 +11,7 @@ import { STATUS_LABELS } from '../appointments.constants.js'
 import { clinicToday } from '../../../lib/clinicTime.js'
 
 function SearchAppointments({ query, onSearch }) {
-  const [value, setValue] = useState(query)
-  return <Form role="search" className="record-search" onSubmit={(event) => { event.preventDefault(); onSearch(value.trim()) }}><Form.Label htmlFor="appointment-search" className="visually-hidden">Search patient, patient ID, or doctor</Form.Label><Form.Control id="appointment-search" type="search" value={value} maxLength={100} placeholder="Search patient, patient ID, or doctor" onChange={(event) => setValue(event.target.value)} /><Button type="submit" variant="outline-secondary"><Search size={16} aria-hidden="true" />Search</Button></Form>
+  return <DirectorySearch id="appointment-search" label="Search patient, patient ID, or doctor" initialValue={query} onSearch={onSearch} />
 }
 
 export default function AppointmentsPage() {
@@ -40,7 +40,7 @@ export default function AppointmentsPage() {
       <div className="appointment-filter-actions"><Button variant="link" onClick={() => filter({ date: clinicToday() })}>Today</Button><Button variant="link" onClick={() => filter({ date: '' })}>All dates</Button>{scoped && <><span>Showing appointments for the selected record.</span><Button variant="link" onClick={() => filter({ patientId: null, doctorId: null })}>Clear record filter</Button></>}</div>
       {resource.loading ? <AsyncState loading title="Loading appointments" message="Fetching the latest schedule…" /> : resource.error ? <AsyncState title="Unable to load appointments" message={resource.error} onRetry={resource.reload} /> : !resource.data.records.length ? <div className="directory-empty" role="status"><h2>{query || status !== 'all' || scoped ? 'No matching appointments' : 'No appointments for this period'}</h2><p>{query || status !== 'all' || scoped ? 'Change the filters or search to see other appointments.' : 'Book an appointment to add it to the clinic schedule.'}</p><Button as={Link} to="/appointments/new" state={{ backTo }}>Book appointment</Button></div> : <>
         <AppointmentTable records={resource.data.records} backTo={backTo} />
-        <div className="directory-pagination"><p role="status">{(resource.data.pagination.page - 1) * resource.data.pagination.limit + 1}–{Math.min(resource.data.pagination.page * resource.data.pagination.limit, resource.data.pagination.total)} of {resource.data.pagination.total} appointments</p><Form.Group controlId="appointment-page-size" className="page-size"><Form.Label>Per page</Form.Label><Form.Select value={String(resource.data.pagination.limit)} onChange={(event) => filter({ limit: event.target.value })}><option>10</option><option>25</option><option>50</option></Form.Select></Form.Group><nav aria-label="Appointment pages" className="page-controls"><Button variant="outline-secondary" disabled={resource.data.pagination.page <= 1} onClick={() => filter({ page: String(resource.data.pagination.page - 1) })}>Previous</Button><span>Page {resource.data.pagination.page} of {resource.data.pagination.pages}</span><Button variant="outline-secondary" disabled={resource.data.pagination.page >= resource.data.pagination.pages} onClick={() => filter({ page: String(resource.data.pagination.page + 1) })}>Next</Button></nav></div>
+        <div className="directory-pagination"><p role="status">{(resource.data.pagination.page - 1) * resource.data.pagination.limit + 1}–{Math.min(resource.data.pagination.page * resource.data.pagination.limit, resource.data.pagination.total)} of {resource.data.pagination.total} appointments</p><Form.Group controlId="appointment-page-size" className="page-size"><Form.Label>Per page</Form.Label><Form.Select value={String(resource.data.pagination.limit)} onChange={(event) => filter({ limit: event.target.value })}><option>10</option><option>25</option><option>50</option></Form.Select></Form.Group><PaginationControls page={resource.data.pagination.page} pages={resource.data.pagination.pages} label="Appointment pages" onPageChange={(page) => filter({ page: String(page) })} /></div>
       </>}
     </section>
   </>

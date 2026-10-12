@@ -8,7 +8,7 @@ export default function WorkspacePage() {
   const { user } = useAuth()
 
   return <>
-    <header className="page-heading workspace-heading"><div><h1>Clinic workspace</h1><p>Welcome, {user.name}. Review the clinic’s records and today's schedule.</p></div><Button as={Link} role="link" to="/appointments/new">Book appointment</Button></header>
+    <header className="page-heading workspace-heading"><div><h1>Clinic workspace</h1><p>Welcome, {user.name}. Today’s appointments and clinic records, in one view.</p></div><Button as={Link} role="link" to="/appointments/new">Book appointment</Button></header>
     <ClinicOverview />
     <section className="workspace-section workspace-directory" aria-labelledby="records-title">
       <h2 id="records-title">Clinic records</h2>

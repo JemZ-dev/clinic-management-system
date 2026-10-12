@@ -1,12 +1,12 @@
 :root {
-  --canvas: #F5F7FA;
+  --canvas: #F3F6F7;
   --surface: #FFFFFF;
-  --surface-subtle: #EDF2F6;
-  --text-primary: #172B3A;
-  --text-secondary: #4D6172;
-  --border: #D5DFE7;
+  --surface-subtle: #EBF0F2;
+  --text-primary: #20343D;
+  --text-secondary: #53656F;
+  --border: #DCE4E7;
   --control-border: #718496;
-  --field-border: #8B9499;
+  --field-border: #BBC8CE;
   --accent: #0F766E;
   --accent-hover: #115E59;
   --on-accent: #FFFFFF;
@@ -22,11 +22,13 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-12: 48px;
-  --radius-control: 6px;
-  --radius-panel: 10px;
-  --radius-dialog: 12px;
+  --radius-control: 7px;
+  --radius-panel: 12px;
+  --radius-dialog: 14px;
+  --sidebar-width: 216px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --bs-body-font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --bs-body-font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --bs-body-font-size: 14px;
   --bs-body-color: var(--text-primary);
   --bs-body-bg: var(--canvas);
   --bs-link-color: var(--accent);

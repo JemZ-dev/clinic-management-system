@@ -1,20 +1,16 @@
-import { useState } from 'react'
+import DirectorySearch from '../ui/DirectorySearch.jsx'
+import PaginationControls from '../ui/PaginationControls.jsx'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import Alert from 'react-bootstrap/Alert'
 import Table from 'react-bootstrap/Table'
-import { Plus, Search } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import useApiResource from '../../hooks/useApiResource.js'
 import AsyncState from '../ui/AsyncState.jsx'
 
 function SearchForm({ query, onSearch, label }) {
-  const [value, setValue] = useState(query)
-  return <Form role="search" className="record-search" onSubmit={(event) => { event.preventDefault(); onSearch(value.trim()) }}>
-    <Form.Label htmlFor="directory-search" className="visually-hidden">{label}</Form.Label>
-    <Form.Control id="directory-search" type="search" value={value} maxLength={100} onChange={(event) => setValue(event.target.value)} placeholder={label} />
-    <Button type="submit" variant="outline-secondary"><Search size={16} aria-hidden="true" /><span>Search</span></Button>
-  </Form>
+  return <DirectorySearch id="directory-search" label={label} initialValue={query} onSearch={onSearch} />
 }
 
 export default function RecordListPage({ config }) {
@@ -53,7 +49,7 @@ export default function RecordListPage({ config }) {
         </div>
         <div className="directory-pagination"><p role="status">{(resource.data.pagination.page - 1) * resource.data.pagination.limit + 1}–{Math.min(resource.data.pagination.page * resource.data.pagination.limit, resource.data.pagination.total)} of {resource.data.pagination.total} {config.kind}</p>
           <Form.Group controlId="directory-limit" className="page-size"><Form.Label>Per page</Form.Label><Form.Select value={limit} onChange={(event) => filter({ limit: event.target.value })}><option>10</option><option>25</option><option>50</option></Form.Select></Form.Group>
-          <nav aria-label={`${config.title} pages`} className="page-controls"><Button variant="outline-secondary" disabled={resource.data.pagination.page <= 1} onClick={() => filter({ page: String(resource.data.pagination.page - 1) })}>Previous</Button><span>Page {resource.data.pagination.page} of {resource.data.pagination.pages}</span><Button variant="outline-secondary" disabled={resource.data.pagination.page >= resource.data.pagination.pages} onClick={() => filter({ page: String(resource.data.pagination.page + 1) })}>Next</Button></nav>
+          <PaginationControls page={resource.data.pagination.page} pages={resource.data.pagination.pages} label={config.title + " pages"} onPageChange={(page) => filter({ page: String(page) })} />
         </div>
       </>}
     </section>
