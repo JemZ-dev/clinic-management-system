@@ -15,8 +15,9 @@ export default function AuthLayout() {
     <div className="auth-shell">
       <aside className="auth-intro">
         <header className="auth-brand"><Brand /></header>
-        <div className="auth-story"><h2>Clinic records,<br />{' '}kept together.</h2><p>One staff workspace for patient profiles, consultations, and the clinic’s medicine stock.</p><ul className="auth-workflow-list"><li><UsersRound size={17} aria-hidden="true" />Patient profiles and medical history</li><li><CalendarDays size={17} aria-hidden="true" />Appointments and visit records</li><li><Pill size={17} aria-hidden="true" />Medicines and stock movements</li></ul></div>
-        <p className="auth-intro-footer">Built around the clinic’s everyday records.</p>
+        <div className="auth-story"><h2>More time for care.<br /><span>Less time finding records.</span></h2><p>Patient histories, appointments, and medicine stock — together in your clinic workspace.</p></div>
+        <ul className="auth-workflow-list"><li><UsersRound size={20} aria-hidden="true" /><div><strong>Patient records</strong><span>History and consultation notes, in one place.</span></div></li><li><CalendarDays size={20} aria-hidden="true" /><div><strong>Appointments & visits</strong><span>From a booking to a saved visit record.</span></div></li><li><Pill size={20} aria-hidden="true" /><div><strong>Medicine inventory</strong><span>Products, receipts, and actual dispensing.</span></div></li></ul>
+        <p className="auth-intro-footer">Cliniqo · Clinic management system</p>
       </aside>
       <div className="auth-content"><div className="auth-panel"><Outlet /></div><p className="auth-footer">For authorized clinic staff. Use fictional patient data for coursework.</p></div>
     </div>

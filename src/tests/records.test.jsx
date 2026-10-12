@@ -125,6 +125,22 @@ describe('patient and doctor workflows', () => {
     expect(get.mock.calls.at(-1)[0]).toContain('status=archived')
   })
 
+  it('clears an applied search from a later page while keeping the record filter and returning focus', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue(list([record], 2, 21))
+    const { user, router } = mount('/patients?q=Fictional&status=archived&page=2')
+    await screen.findByRole('link', { name: 'Fictional Patient', exact: true })
+    await user.click(screen.getByRole('button', { name: 'Clear search input' }))
+    await waitFor(() => {
+      const params = new URLSearchParams(router.state.location.search)
+      expect(params.has('q')).toBe(false)
+      expect(params.get('page')).toBe('1')
+      expect(params.get('status')).toBe('archived')
+      expect(screen.getByRole('searchbox').value).toBe('')
+      expect(document.activeElement).toBe(screen.getByRole('searchbox'))
+    })
+    expect(get.mock.calls.at(-1)[0]).toContain('q=&status=archived')
+  })
+
   it('shows an honest empty state and a separate no-results state', async () => {
     vi.spyOn(api, 'get').mockResolvedValue(list())
     const { user } = mount('/patients')

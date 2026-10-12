@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import Button from 'react-bootstrap/Button'
-import { RefreshCw, ArrowUpRight, CalendarDays, Check } from 'lucide-react'
+import { RefreshCw, ArrowUpRight, CalendarDays, Check, UsersRound, Stethoscope, Clock3 } from 'lucide-react'
 import useApiResource from '../../../hooks/useApiResource.js'
 import AsyncState from '../../../components/ui/AsyncState.jsx'
 import AppointmentTable from '../../appointments/components/AppointmentTable.jsx'
@@ -21,7 +21,7 @@ export default function ClinicOverview() {
   ]
   return <>
     <section className="dashboard-overview" aria-labelledby="overview-title"><div className="section-heading overview-heading"><h2 id="overview-title">Clinic overview</h2><div className="overview-tools"><p className="record-meta mb-0">{formatClinicDate(data.date)} · Manila time</p><Button variant="outline-secondary" onClick={resource.reload}><RefreshCw size={16} aria-hidden="true" />Refresh</Button></div></div>
-      <dl className="dashboard-summary"><div><dt>Active patients</dt><dd><Link to="/patients">{data.patients}</Link></dd></div><div><dt>Today's appointments</dt><dd><Link to={`/appointments?date=${data.date}`}>{data.todayTotal}</Link></dd></div><div><dt>Checked-in queue</dt><dd><Link to="/appointments?status=checked_in&date=">{data.waiting}</Link></dd></div><div><dt>Active doctors</dt><dd><Link to="/doctors">{data.doctors}</Link></dd></div></dl>
+      <dl className="dashboard-summary"><div><dt>Active patients<UsersRound size={17} aria-hidden="true" /></dt><dd><Link to="/patients">{data.patients}</Link></dd></div><div><dt>Today's appointments<CalendarDays size={17} aria-hidden="true" /></dt><dd><Link to={`/appointments?date=${data.date}`}>{data.todayTotal}</Link></dd></div><div><dt>Checked-in queue<Clock3 size={17} aria-hidden="true" /></dt><dd><Link to="/appointments?status=checked_in&date=">{data.waiting}</Link></dd></div><div><dt>Active doctors<Stethoscope size={17} aria-hidden="true" /></dt><dd><Link to="/doctors">{data.doctors}</Link></dd></div></dl>
     </section>
     <div className="dashboard-work-grid"><section className="directory-panel dashboard-appointments" aria-labelledby="today-appointments-title"><div className="section-heading"><div><h2 id="today-appointments-title">Today's active appointments</h2><p className="record-meta">Scheduled and checked-in patients</p></div><Link to={`/appointments?date=${data.date}`} className="inline-action">View schedule <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
       {data.todayTotal > 0 && <div className="dashboard-statuses" aria-label="Today's appointment status totals">{Object.entries(STATUS_LABELS).map(([status, label]) => <Link to={`/appointments?date=${data.date}&status=${status}`} key={status}><span>{label}</span>{' '}<strong>{data.statuses[status]}</strong></Link>)}</div>}
