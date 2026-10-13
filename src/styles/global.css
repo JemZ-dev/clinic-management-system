@@ -55,7 +55,8 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .app-layout { display: flex; min-height: 100dvh; }
 .desktop-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); padding: 28px 14px 20px; background: var(--nav-surface); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
 .desktop-sidebar::-webkit-scrollbar { display: none; }
-.desktop-sidebar .brand { margin: 0 10px 38px; flex-shrink: 0; }
+.desktop-sidebar .brand { margin: 0 10px 28px; flex-shrink: 0; font-size: 18px; gap: 8px; }
+.desktop-sidebar .brand-symbol { width: 36px; height: 36px; padding: 1px; border-radius: 9px; }
 .clinic-nav { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
 .clinic-nav a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 42px; border-radius: var(--radius-control); color: var(--nav-secondary); text-decoration: none; font-size: 13px; font-weight: 550; transition: background-color var(--duration-feedback) ease, color var(--duration-feedback) ease; }
 .clinic-nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -139,7 +140,7 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .appointment-filter-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border); padding: 8px 12px; }
 .appointment-filter-actions > span { font-size: 11px; color: var(--text-secondary); margin-left: 8px; }
 .appointment-filter-actions .btn { min-height: 28px; padding: 4px 10px; font-size: 11px; }
-.table-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.table-scroll { position: relative; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .table-scroll:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: -2px; }
 .directory-table { margin: 0; font-size: 14px; min-width: 680px; --bs-table-bg: var(--surface); --bs-table-color: var(--text-primary); --bs-table-border-color: var(--border); }
 .directory-table th, .directory-table td { padding: 16px 24px; vertical-align: middle; }
@@ -169,6 +170,32 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 
 /* Clinical history, appointments and inventory */
 .appointment-table { min-width: 720px; }
+.queue-table { min-width: 780px; }
+.accounts-table { min-width: 760px; }
+.billing-table { min-width: 860px; }
+.services-table { min-width: 780px; }
+.services-table .numeric-cell { white-space: nowrap; }
+.service-preparation { margin-top: 10px; font-size: 12px; font-weight: 400; }
+.service-preparation summary { color: var(--text-secondary); cursor: pointer; }
+.service-preparation p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.billing-table .numeric-cell { white-space: nowrap; }
+.record-status.billing-outstanding { color: var(--warning); background: #FFFBEB; }
+.invitation-revoke { --bs-btn-color: var(--danger); --bs-btn-hover-color: var(--danger); --bs-btn-active-color: var(--danger); }
+.invitation-result-status { margin-bottom: 24px; }
+.invitation-result-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+.invitation-recipient { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 24px; }
+.invitation-recipient > div { min-width: 0; }
+.invitation-recipient dt { font-size: 12px; margin-bottom: 6px; }
+.invitation-recipient dd { font-weight: 600; overflow-wrap: anywhere; }
+.invitation-code-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.invitation-code-heading h3, .invitation-instructions h3 { margin: 0; font-size: 14px; font-weight: 650; }
+.invitation-code-value { display: block; padding: 14px 16px; border-radius: var(--radius-control); background: var(--canvas); color: var(--text-primary); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; user-select: all; }
+.invitation-instructions ol { margin: 14px 0 0; padding-left: 20px; color: var(--text-secondary); }
+.invitation-instructions li { padding-left: 4px; margin-bottom: 12px; line-height: 1.6; }
+.invitation-register-url { color: var(--text-primary); font-weight: 600; overflow-wrap: anywhere; }
+.invitation-result-note { border-top: 1px solid var(--border); padding-top: 16px; margin: 20px 0 0; font-size: 12px; }
+@media (max-width: 767px) { .invitation-result-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+.queue-toolbar .workflow-field { margin-bottom: 0; min-width: 180px; }
 .visit-table { min-width: 640px; }
 .medicine-table { min-width: 720px; }
 .movement-table { min-width: 850px; }
@@ -206,8 +233,11 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .prescription-line h3 { font-size: 14px; overflow-wrap: anywhere; }
 .prescription-quantities { display: flex; flex-wrap: wrap; gap: 24px; font-variant-numeric: tabular-nums; }
 .prescription-quantities dt { font-size: 11px; }
-.medicine-picker-search { align-items: end; margin: 16px 0; }
-.medicine-picker-search > div { flex: 1; }
+.medicine-picker-search { display: flex; align-items: end; gap: 12px; width: 100%; max-width: 800px; margin: 24px 0 16px; }
+.medicine-picker-search > div { flex: 1; min-width: 0; }
+.medicine-picker-search > button { flex-shrink: 0; min-height: 38px; }
+.medicine-picker-empty { margin: 0; padding: 16px 0 0; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.7; }
+.prescription-editor .async-state { min-height: 180px; }
 .medicine-picker-results { padding: 0; margin: 0 0 14px; list-style: none; }
 .medicine-picker-results li { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .medicine-picker-results li > div:first-child { min-width: 0; overflow-wrap: anywhere; }
@@ -334,12 +364,18 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .modal-footer { padding: 14px 22px; background: var(--canvas); }
 .unsaved-changes-modal-content { border: 0; background: var(--surface); box-shadow: 0 16px 48px rgb(15 23 42 / 18%); }
 .unsaved-changes-modal-content .modal-header, .unsaved-changes-modal-content .modal-footer { border: 0; background: var(--surface); }
+.modal-dialog:has(> .unsaved-changes-modal-content) { width: calc(100% - 32px); max-width: 400px; margin-inline: auto; }
+.unsaved-changes-modal-content .modal-header { padding: 20px 20px 22px; }
+.unsaved-changes-modal-content .modal-body { padding: 0 20px 16px; font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--text-primary); }
+.unsaved-changes-modal-content .modal-body p { color: inherit; }
+.unsaved-changes-modal-content .modal-footer { padding: 0 16px 16px; gap: 4px; }
 .modal .record-field + .record-field { margin-top: 18px; }
 .record-mutation-action { min-width: 130px; }
 
 /* Shared desk details: brand surfaces, control groups, and document hierarchy. */
 .desktop-sidebar .brand, .mobile-nav .brand, .auth-intro .brand { color: var(--nav-text); }
 .desktop-sidebar .brand-subtitle, .mobile-nav .brand-subtitle, .auth-intro .brand-subtitle { color: var(--nav-secondary); font-size: 11px; line-height: 1.5; }
+.desktop-sidebar .brand-subtitle { font-size: 10px; line-height: 1.4; margin-top: 3px; }
 .desktop-sidebar .brand-symbol, .mobile-nav .brand-symbol, .auth-intro .brand-symbol { background: #fff; }
 .desktop-sidebar :focus-visible, .mobile-nav :focus-visible { outline-color: var(--nav-text); }
 .mobile-nav .btn-close { filter: invert(1); }
@@ -438,7 +474,7 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
   .auth-story p, .auth-workflow-list { display: none; }
   .auth-content { padding: 32px 24px; }
   .auth-panel .form-control, .auth-panel .submit-button, .password-toggle { min-height: 44px; }
-  .medicine-picker-search { flex-wrap: wrap; }
+  .medicine-picker-search { flex-wrap: wrap; align-items: stretch; }
   .medicine-picker-search > div { flex-basis: 100%; }
   .low-stock-quantity { min-width: 90px; }
   .search-clear.btn { min-height: 44px; width: 44px; }
@@ -469,6 +505,7 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .workflow-pagination { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; padding-top:16px; }
 .workflow-pagination > span:first-child { margin-right:auto; }
 .workflow-schedule-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:12px; align-items:center; }
+.schedule-remove-button { width: 38px; min-height: 38px; padding: 8px; margin-top: 9px; --bs-btn-color: var(--danger); --bs-btn-hover-color: var(--danger); --bs-btn-hover-bg: #FEF2F2; --bs-btn-active-color: var(--danger); --bs-btn-active-bg: #FEE2E2; }
 .workflow-code { display:block; overflow-wrap:anywhere; margin:16px 0; }
 .workflow-action { display:inline-flex; flex-direction:column; gap:8px; }
 .workflow-note { white-space:pre-wrap; }
@@ -488,4 +525,45 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
   .main-content { padding:0!important; }
   .workspace-section { border:0!important; }
   .table-responsive { overflow:visible!important; }
+}
+
+.billing-receipt { display: none; }
+@media print {
+  @page { size: A4; margin: 16mm; }
+  body:has(.billing-receipt) { background: white!important; }
+  body:has(.billing-receipt) .page-heading { display: none!important; }
+  body:has(.billing-receipt) .workspace-section { padding: 0!important; margin: 0!important; box-shadow: none!important; }
+  .billing-receipt { display: block; color: #21383c; font-family: 'Manrope', Helvetica, sans-serif; font-size: 10pt; line-height: 1.5; }
+  .receipt-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid #145651; }
+  .receipt-brand { display: flex; align-items: center; gap: 12px; }
+  .receipt-brand img { width: 72px; height: 72px; object-fit: contain; }
+  .receipt-brand strong { display: block; font-size: 25pt; color: #145651; letter-spacing: -.03em; }
+  .receipt-brand span { font-size: 9pt; }
+  .receipt-title { text-align: right; }
+  .receipt-title h1 { margin: 0; font-size: 17pt; }
+  .receipt-title p { margin: 3px 0 8px; font-size: 10pt; }
+  .receipt-title span { display: block; font-size: 8pt; overflow-wrap: anywhere; }
+  .receipt-details { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 22px 0 28px; }
+  .receipt-details dt { font-size: 9pt; font-weight: 500; color: #52676c; }
+  .receipt-details dd { margin: 2px 0 8px; }
+  .receipt-details > div:first-child dd:first-of-type { font-size: 13pt; font-weight: 700; }
+  .billing-receipt h2 { font-size: 11pt; margin: 24px 0 10px; }
+  .billing-receipt table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .billing-receipt th { font-size: 9pt; padding: 9px 8px; border-block: 1px solid #a6b8b9; text-align: left; }
+  .billing-receipt td { padding: 11px 8px; border-bottom: 1px solid #dce4e4; vertical-align: top; overflow-wrap: anywhere; }
+  .billing-receipt th:first-child { width: 43%; }
+  .billing-receipt th:last-child, .billing-receipt td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .billing-receipt small { display: block; font-size: 8pt; color: #52676c; }
+  .receipt-voided td { text-decoration: line-through; }
+  .receipt-voided small { text-decoration: none; }
+  .receipt-totals { width: 48%; margin: 18px 0 30px auto; }
+  .receipt-totals div { display: flex; justify-content: space-between; gap: 16px; padding: 6px 8px; }
+  .receipt-totals dt { font-weight: 500; }
+  .receipt-totals dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .receipt-totals .receipt-balance { border-block: 2px solid #145651; padding-block: 11px; margin-top: 7px; font-size: 13pt; }
+  .receipt-balance dt, .receipt-balance dd { font-weight: 700; }
+  .receipt-footer { margin-top: 35px; padding-top: 16px; border-top: 1px solid #a6b8b9; text-align: center; }
+  .receipt-footer p { margin: 4px 0 10px; }
+  .receipt-header, .receipt-details, .receipt-totals, .receipt-footer, .billing-receipt tr { break-inside: avoid; }
+  .billing-receipt thead { display: table-header-group; }
 }

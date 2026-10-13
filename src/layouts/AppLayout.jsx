@@ -10,6 +10,7 @@ import Brand from '../components/ui/Brand.jsx'
 import AsyncState from '../components/ui/AsyncState.jsx'
 import ConnectionStatus from '../components/ui/ConnectionStatus.jsx'
 import { useAuth } from '../hooks/useAuth.js'
+import useConfirmDialog from '../hooks/useConfirmDialog.jsx'
 import { apiError } from '../lib/api.js'
 
 const navigation = [{ to: '/', label: 'Workspace', icon: LayoutDashboard }, { to: '/patients', label: 'Patients', icon: UsersRound }, { to: '/doctors', label: 'Doctors', icon: Stethoscope }, { to: '/appointments', label: 'Appointments', icon: CalendarDays }, { to: '/visits', label: 'Visits', icon: ClipboardList, permissions: ['clinical', 'dispense'] }, { to: '/medicines', label: 'Medicines', icon: Pill }, { to: '/inventory', label: 'Inventory', icon: Package, permissions: ['dispense'] }, { to: '/queue', label: 'Patient queue', icon: UsersRound }, { to: '/services', label: 'Services & pricing', icon: ClipboardList }, { to: '/diagnostics', label: 'Diagnostics', icon: ClipboardList, permissions: ['clinical', 'diagnostics', 'reception'] }, { to: '/billing', label: 'Billing', icon: ClipboardList, permissions: ['billing'] }, { to: '/schedules', label: 'Schedules', icon: CalendarDays, permissions: ['schedule'] }, { to: '/accounts', label: 'Accounts', icon: UsersRound, permissions: ['accounts'] }, { to: '/profile', label: 'My profile', icon: UserRound }]
@@ -28,6 +29,7 @@ function SidebarFooter({ busy, onSignOut }) {
 }
 
 export default function AppLayout() {
+  const { confirm, dialog } = useConfirmDialog()
   const [menuOpen, setMenuOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +46,9 @@ export default function AppLayout() {
   }, [location.pathname])
 
   async function handleLogout() {
+    if (busy) return
+    setMenuOpen(false)
+    if (!await confirm('Are you sure you want to sign out?', { title: 'Sign out?', confirmLabel: 'Sign out', cancelLabel: 'Cancel', variant: 'danger' })) return
     const event = new CustomEvent('clinic-before-signout', { cancelable: true, detail: { proceed: performLogout } })
     if (window.dispatchEvent(event)) await performLogout()
   }
@@ -54,6 +59,7 @@ export default function AppLayout() {
   }
 
   return <div className="app-layout">
+    {dialog}
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <aside className="desktop-sidebar">
       <Brand />

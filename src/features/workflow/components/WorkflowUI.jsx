@@ -1,3 +1,4 @@
+import useConfirmDialog from '../../../hooks/useConfirmDialog.jsx'
 import { useId, useRef, useState } from 'react'
 import Form from 'react-bootstrap/Form'
 import Alert from 'react-bootstrap/Alert'
@@ -45,8 +46,9 @@ export function WorkflowForm({ initial, onSave, children, submitLabel = 'Save ch
 }
 export function ActionButton({ children, onAction, confirm, variant = 'outline-secondary', ...props }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
-  return <span className="workflow-action"><Button {...props} variant={variant} disabled={busy || props.disabled} onClick={async () => {
-    if (confirm && !window.confirm(confirm)) return
+  const { confirm: askConfirmation, dialog } = useConfirmDialog()
+  return <span className="workflow-action">{dialog}<Button {...props} variant={variant} disabled={busy || props.disabled} onClick={async () => {
+    if (confirm && !await askConfirmation(confirm, { title: 'Confirm action', confirmLabel: typeof children === 'string' ? children : 'Continue', variant })) return
     setBusy(true); setError('')
     try { await onAction() } catch (failure) { setError(apiError(failure)) } finally { setBusy(false) }
   }}>{busy ? 'Saving…' : children}</Button>{error && <span role="alert" className="field-error">{error}</span>}</span>

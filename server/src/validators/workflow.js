@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_PAYMENT_REFERENCE_LENGTH, PAYMENT_REFERENCE_PATTERN } from '../../../shared/paymentValidation.js'
 import { recordIdSchema as id } from './records.js'
 import { clinicDate, validDate } from '../utils/clinicTime.js'
 import { prescriptionSchema } from './medicines.js'
@@ -32,9 +33,17 @@ export const scheduleInput = z.object({ version: version.optional(), weekly: z.a
   value.leave.forEach((entry, i) => { if (entry.from > entry.through) ctx.addIssue({ code: 'custom', path: ['leave', i], message: 'Leave end must follow its start.' }) })
 })
 export const accountInput = z.object({ role: z.enum(['admin', 'staff', 'doctor']), permissions: z.array(z.enum(['assess', 'diagnostics', 'dispense'])).max(3), doctorId: z.union([id, z.literal('')]).default('') }).strict().refine((value) => value.role !== 'doctor' || !!value.doctorId, { path: ['doctorId'], message: 'Link a doctor directory record.' })
+export const invitationInput = z.object({
+  ...accountInput.shape,
+  email: z.email().max(254).transform((value) => value.toLowerCase()),
+  newDoctor: z.object({ name: z.string().trim().min(2).max(100), specialty: z.string().trim().min(2).max(100), phone: z.string().trim().max(30).regex(/^[+\d\s().-]*$/).default('') }).strict().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.role === 'doctor' && !value.doctorId && !value.newDoctor) context.addIssue({ code: 'custom', path: ['doctorId'], message: 'Choose an existing doctor or enter the new doctor’s details.' })
+  if (value.newDoctor && (value.role !== 'doctor' || value.doctorId)) context.addIssue({ code: 'custom', path: ['newDoctor'], message: 'Create a new doctor or select an existing record, not both.' })
+})
 export const orderInput = z.object({ encounterId: id, serviceId: id, requestId }).strict()
 export const orderAction = z.object({ version, stage: z.enum(['scheduled', 'performed', 'reviewed', 'cancelled']), note: text(2000).default(''), scheduledAt: z.iso.datetime({ offset: true }).optional() }).strict()
 export const reportInput = z.object({ version, name: text(120).min(1), provider: text(160).min(2), reportDate: date.refine((value) => value <= clinicDate(), 'Report date cannot be in the future.'), mime: z.enum(['application/pdf', 'image/png', 'image/jpeg']), content: z.string().max(7000000) }).strict()
-export const paymentInput = z.object({ version, requestId, amountCentavos: z.number().int().positive().max(100000000), method: z.enum(['cash', 'card', 'bank_transfer', 'gcash']), reference: text(100).default(''), refund: z.boolean().default(false), reason: text(500).default('') }).strict().refine((value) => !value.refund || value.reason.length >= 2, { path: ['reason'], message: 'Explain the refund.' })
+export const paymentInput = z.object({ version, requestId, amountCentavos: z.number().int().positive().max(100000000), method: z.enum(['cash', 'gcash']), reference: text(MAX_PAYMENT_REFERENCE_LENGTH).regex(PAYMENT_REFERENCE_PATTERN, 'Use letters, numbers, spaces, hyphens, underscores, or slashes.').default(''), refund: z.boolean().default(false), reason: text(500).default('') }).strict().refine((value) => !value.refund || value.reason.length >= 2, { path: ['reason'], message: 'Explain the refund.' }).refine((value) => value.method !== 'gcash' || value.reference.length > 0, { path: ['reference'], message: 'Enter the GCash transaction reference.' })
 export const chargeInput = z.object({ version, serviceId: id.optional(), movementId: id.optional(), unitCentavos: z.number().int().min(0).max(100000000).optional() }).strict().refine((value) => !!value.serviceId !== !!value.movementId, 'Select a service or a medicine dispensing entry.')
 export const actionInput = z.object({ version, action: z.enum(['start', 'left', 'priority', 'normal']), note: text(500).default('') }).strict()

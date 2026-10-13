@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AuthContext } from '../context/auth.js'
@@ -44,6 +44,12 @@ describe('patient and doctor workflows', () => {
     expect(screen.getByLabelText(/Full name/).value).toBe('Unsaved Patient')
     expect(router.state.location.pathname).toBe('/patients/new')
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    const signout = await screen.findByRole('dialog', { name: 'Sign out?' })
+    await user.click(within(signout).getByRole('button', { name: 'Cancel' }))
+    expect(logout).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/Full name/).value).toBe('Unsaved Patient')
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Sign out?' })).getByRole('button', { name: 'Sign out' }))
     expect(logout).not.toHaveBeenCalled()
     await user.click(await screen.findByRole('button', { name: 'Keep editing' }))
     await user.click(screen.getByRole('link', { name: 'Doctors', exact: true }))

@@ -4,6 +4,7 @@ import { Invitation, AuditEvent } from '../models/Operations.js'
 import jwt from 'jsonwebtoken'
 import { User, publicUser } from '../models/User.js'
 import { Session } from '../models/Session.js'
+import { Doctor } from '../models/Doctor.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { HttpError } from '../utils/errors.js'
 
@@ -32,8 +33,12 @@ export function createAuthService(config) {
       let user
       try {
         await mongoose.connection.transaction(async (session) => {
-          const invite = await Invitation.findOneAndUpdate({ tokenHash: createHash('sha256').update(input.registrationCode).digest('hex'), email: input.email, usedAt: null, expiresAt: { $gt: new Date() } }, { $set: { usedAt: new Date() } }, { session, returnDocument: 'after' })
+          const invite = await Invitation.findOneAndUpdate({ tokenHash: createHash('sha256').update(input.registrationCode).digest('hex'), email: input.email, usedAt: null, revokedAt: null, expiresAt: { $gt: new Date() } }, { $set: { usedAt: new Date() }, $inc: { __v: 1 } }, { session, returnDocument: 'after' })
           if (!invite) throw new HttpError(403, 'The invitation is invalid, expired, or belongs to another email.', { registrationCode: 'Ask your clinic administrator for a new invitation.' })
+          if (invite.role === 'doctor') {
+            const doctor = await Doctor.findOneAndUpdate({ _id: invite.doctorId, archivedAt: null }, { $inc: { __v: 1 } }, { session })
+            if (!doctor) throw new HttpError(409, 'The linked doctor is unavailable. Ask your administrator for a new invitation.')
+          }
           ;[user] = await User.create([{ name: input.name, email: input.email, passwordHash, role: invite.role, permissions: invite.permissions, doctorId: invite.doctorId || null }], { session })
           await AuditEvent.create([{ action: 'account_registered', target: user.id, actor: { id: user.id, name: user.name } }], { session })
         })

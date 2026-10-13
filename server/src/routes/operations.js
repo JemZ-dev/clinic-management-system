@@ -12,7 +12,7 @@ import { Appointment } from '../models/Appointment.js'
 import { DoctorSchedule, ClinicService, DiagnosticOrder, DiagnosticReport, Invoice, Invitation, AuditEvent } from '../models/Operations.js'
 import { validate } from '../validators/auth.js'
 import { recordIdSchema as id } from '../validators/records.js'
-import { accountInput, serviceInput, scheduleInput, orderInput, orderAction, reportInput, version } from '../validators/workflow.js'
+import { accountInput, invitationInput, serviceInput, scheduleInput, orderInput, orderAction, reportInput, version } from '../validators/workflow.js'
 import { HttpError } from '../utils/errors.js'
 import { plain, actor, event, digest, conflict, checkVersion, saveVersion, getEncounter, availableSlots, scheduleAllows } from '../services/workflow.js'
 import { clinicDate, validDate } from '../utils/clinicTime.js'
@@ -28,32 +28,79 @@ export function operationRoutes(authService) {
   async function checkDoctor(input, session = null) {
     if (input.role === 'doctor' && !await Doctor.exists({ _id: input.doctorId, archivedAt: null }).session(session)) throw new HttpError(400, 'Choose an active doctor directory record.')
   }
+  router.get('/invitations', requirePermission('accounts'), async (_request, response) => {
+    const invitations = await Invitation.find({ usedAt: null, revokedAt: null }).select('-tokenHash').populate('doctorId', 'name specialty').sort({ createdAt: -1 }).limit(500)
+    response.json({ records: invitations.map((invite) => ({ id: invite.id, email: invite.email, role: invite.role, permissions: invite.permissions, doctor: invite.doctorId ? { id: invite.doctorId.id, name: invite.doctorId.name } : null, expiresAt: invite.expiresAt, version: invite.__v, status: invite.expiresAt > new Date() ? 'pending' : 'expired' })) })
+  })
+  async function reserveDoctor(doctorId, email, session) {
+    const doctor = await Doctor.findOneAndUpdate({ _id: doctorId, archivedAt: null }, { $inc: { __v: 1 } }, { session })
+    if (!doctor) throw new HttpError(400, 'Choose an active doctor directory record.')
+    if (await User.exists({ doctorId }).session(session)) throw new HttpError(409, 'This doctor already has an account.')
+    if (await Invitation.exists({ doctorId, email: { $ne: email }, usedAt: null, revokedAt: null, expiresAt: { $gt: new Date() } }).session(session)) throw new HttpError(409, 'This doctor already has a pending invitation. Replace or revoke that invitation first.')
+  }
   router.post('/invitations', requirePermission('accounts'), async (request, response) => {
-    const { email, ...input } = validate(z.object({ ...accountInput.shape, email: z.email().max(254).transform((value) => value.toLowerCase()) }).strict(), request.body)
-    validate(accountInput, input); await checkDoctor(input)
+    const { email, newDoctor, ...input } = validate(invitationInput, request.body)
+    if (!newDoctor) { validate(accountInput, input); await checkDoctor(input) }
     if (await User.exists({ email })) throw new HttpError(409, 'This email already has an account.')
-    if (input.role === 'doctor' && await User.exists({ doctorId: input.doctorId })) throw new HttpError(409, 'This doctor already has an account.')
+    if (input.role === 'doctor' && input.doctorId && await User.exists({ doctorId: input.doctorId })) throw new HttpError(409, 'This doctor already has an account.')
     const code = randomBytes(32).toString('hex')
     await mongoose.connection.transaction(async (session) => {
-      await Invitation.deleteMany({ email, usedAt: null }, { session })
-      await Invitation.create([{ ...input, doctorId: input.role === 'doctor' ? input.doctorId : null, email, tokenHash: createHash('sha256').update(code).digest('hex'), expiresAt: new Date(Date.now() + 48 * 3600000), createdBy: request.auth.user.id }], { session })
+      let doctorId = input.doctorId
+      if (newDoctor) {
+        const [doctor] = await Doctor.create([{ ...newDoctor, email, createdBy: request.auth.user.id, updatedBy: request.auth.user.id }], { session })
+        doctorId = doctor.id
+        await AuditEvent.create([{ action: 'doctor_created_with_invitation', target: doctor.id, actor: actor(request.auth.user) }], { session })
+      }
+      const administrator = await User.updateOne({ _id: request.auth.user.id, role: 'admin', active: { $ne: false } }, { $inc: { __v: 1 } }, { session })
+      if (!administrator.matchedCount) throw new HttpError(403, 'Your administrator access has changed. Sign in again.')
+      if (await User.exists({ email }).session(session)) throw new HttpError(409, 'This email already has an account.')
+      if (await Invitation.exists({ email, usedAt: null, revokedAt: null }).session(session)) throw new HttpError(409, 'An invitation already exists for this email. Use Replace invitation in the pending list.')
+      if (input.role === 'doctor') await reserveDoctor(doctorId, email, session)
+      await Invitation.create([{ ...input, doctorId: input.role === 'doctor' ? doctorId : null, email, tokenHash: createHash('sha256').update(code).digest('hex'), expiresAt: new Date(Date.now() + 48 * 3600000), createdBy: request.auth.user.id }], { session })
       await AuditEvent.create([{ action: 'invitation_created', target: email, actor: actor(request.auth.user), detail: input.role }], { session })
     })
     response.status(201).json({ code, expiresInHours: 48 })
   })
+  router.post('/invitations/:id/replace', requirePermission('accounts'), async (request, response) => {
+    const { version: loadedVersion } = validate(z.object({ version }).strict(), request.body)
+    const code = randomBytes(32).toString('hex')
+    await mongoose.connection.transaction(async (session) => {
+      const invite = await Invitation.findOne({ _id: request.params.id, __v: loadedVersion, usedAt: null, revokedAt: null }).session(session)
+      if (!invite) conflict()
+      if (await User.exists({ email: invite.email }).session(session)) throw new HttpError(409, 'This employee already has an account.')
+      if (invite.role === 'doctor') await reserveDoctor(invite.doctorId, invite.email, session)
+      invite.tokenHash = createHash('sha256').update(code).digest('hex')
+      invite.expiresAt = new Date(Date.now() + 48 * 3600000)
+      await invite.save({ session })
+      await AuditEvent.create([{ action: 'invitation_replaced', target: invite.email, actor: actor(request.auth.user) }], { session })
+    })
+    response.json({ code, expiresInHours: 48 })
+  })
+  router.post('/invitations/:id/revoke', requirePermission('accounts'), async (request, response) => {
+    const { version: loadedVersion } = validate(z.object({ version }).strict(), request.body)
+    await mongoose.connection.transaction(async (session) => {
+      const invite = await Invitation.findOneAndUpdate({ _id: request.params.id, __v: loadedVersion, usedAt: null, revokedAt: null }, { $set: { revokedAt: new Date() }, $inc: { __v: 1 } }, { session, returnDocument: 'after' })
+      if (!invite) conflict()
+      await AuditEvent.create([{ action: 'invitation_revoked', target: invite.email, actor: actor(request.auth.user) }], { session })
+    })
+    response.json({ message: 'Invitation revoked. Its code can no longer be used.' })
+  })
   router.patch('/accounts/:id', requirePermission('accounts'), async (request, response) => {
     const { version: loadedVersion, active, ...input } = validate(z.object({ ...accountInput.shape, version, active: z.boolean() }).strict(), request.body)
     validate(accountInput, input)
-    if (request.params.id === request.auth.user.id) throw new HttpError(400, 'Ask another administrator to change your access. You cannot deactivate or change your own privileges.')
+    const self = request.params.id === request.auth.user.id
+    if (self && (input.role !== 'admin' || !active || input.doctorId)) throw new HttpError(400, 'You can update your responsibilities, but cannot change your own administrator role or deactivate your account.')
     await checkDoctor(input)
     let user
     try {
       await mongoose.connection.transaction(async (session) => {
-        const administrator = await User.updateOne({ _id: request.auth.user.id, role: 'admin', active: { $ne: false } }, { $inc: { __v: 1 } }, { session })
-        if (!administrator.matchedCount) throw new HttpError(403, 'Your administrator access has changed. Sign in again.')
-        user = await User.findOneAndUpdate({ _id: request.params.id, __v: loadedVersion }, { $set: { ...input, doctorId: input.role === 'doctor' ? input.doctorId : null, active }, $inc: { __v: 1 } }, { session, returnDocument: 'after', runValidators: true })
+        if (!self) {
+          const administrator = await User.updateOne({ _id: request.auth.user.id, role: 'admin', active: { $ne: false } }, { $inc: { __v: 1 } }, { session })
+          if (!administrator.matchedCount) throw new HttpError(403, 'Your administrator access has changed. Sign in again.')
+        }
+        user = await User.findOneAndUpdate({ _id: request.params.id, __v: loadedVersion, ...(self ? { role: 'admin', active: { $ne: false } } : {}) }, { $set: { ...input, doctorId: input.role === 'doctor' ? input.doctorId : null, active }, $inc: { __v: 1 } }, { session, returnDocument: 'after', runValidators: true })
         if (!user) conflict()
-        await Session.deleteMany({ userId: user.id }, { session })
+        await Session.deleteMany({ userId: user.id, ...(self ? { _id: { $ne: request.auth.sessionId } } : {}) }, { session })
         await AuditEvent.create([{ action: 'account_access_changed', target: user.id, actor: actor(request.auth.user), detail: `${input.role}; active=${active}` }], { session })
       })
     } catch (error) { if (error.code === 11000) throw new HttpError(409, 'This doctor already has an account.'); throw error }

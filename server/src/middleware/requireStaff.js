@@ -10,7 +10,7 @@ export function requireStaff(request, _response, next) {
     doctors: read ? can(user, 'directory') : can(user, 'accounts'),
     appointments: read ? can(user, 'directory') : can(user, 'reception'),
     visits: can(user, 'clinical') || (read && can(user, 'dispense')),
-    medicines: read ? can(user, 'directory') : can(user, 'dispense'),
+    medicines: read ? can(user, 'directory') : can(user, request.path.endsWith('/movements') ? 'dispense' : 'medicineCatalog'),
     inventory: can(user, 'dispense') || (read && can(user, 'billing')),
     dashboard: can(user, 'directory'),
   }

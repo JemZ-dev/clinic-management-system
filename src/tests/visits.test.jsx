@@ -140,6 +140,7 @@ describe('visit and treatment workflows', () => {
     const { user, logout } = mount('/visits/new')
     await user.type(screen.getByLabelText(/Consultation notes/), 'Unsaved fictional notes')
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Sign out?' })).getByRole('button', { name: 'Sign out' }))
     await screen.findByRole('dialog', { name: 'Discard unsaved changes?' })
     await user.click(screen.getByRole('button', { name: 'Keep editing' }))
     expect(logout).not.toHaveBeenCalled()

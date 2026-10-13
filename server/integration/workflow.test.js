@@ -55,13 +55,47 @@ test('clinic workflow: permissions, invitation, arrival, assessment, consultatio
     assert.equal(response.status, 200); cookies[who] = response.headers.get('set-cookie').split(';')[0]
   }
   assert.equal((await call('reception', '/operations/accounts')).status, 403)
-  assert.equal((await call('admin', '/visits')).status, 403)
+  let ownAccount = (await ok('admin', '/operations/accounts')).records.find((item) => item.id === admin.id)
+  const ownAccess = { version: ownAccount.version, role: 'admin', permissions: ['assess'], doctorId: '', active: true }
+  assert.equal((await call('admin', `/operations/accounts/${admin.id}`, 'PATCH', { ...ownAccess, active: false })).status, 400)
+  assert.equal((await call('admin', `/operations/accounts/${admin.id}`, 'PATCH', { ...ownAccess, role: 'staff' })).status, 400)
+  ownAccount = (await ok('admin', `/operations/accounts/${admin.id}`, 'PATCH', ownAccess)).record
+  assert.deepEqual(ownAccount.permissions, ['assess'])
+  assert.equal((await call('admin', '/auth/me')).status, 200, 'self-management preserves the current administrator session')
+  const stockMedicine = (await ok('admin', '/medicines', 'POST', { genericName: 'Admin stock test', brandName: '', strength: '10 mg', dosageForm: 'tablet', stockUnit: 'tablet', notes: '', lowStockThreshold: 2 }, 201)).record
+  await ok('admin', `/medicines/${stockMedicine.id}/movements`, 'POST', { requestId: randomUUID(), version: stockMedicine.version, type: 'receipt', quantity: 10, note: 'Test receipt' }, 201)
+  assert.equal((await ok('admin', `/medicines/${stockMedicine.id}`)).record.quantity, 10)
+  assert.equal((await call('admin', '/visits')).status, 200)
+  assert.equal((await call('admin', '/visits', 'POST', {})).status, 403)
   assert.equal((await call('reception', '/visits')).status, 403)
   assert.equal((await call('reception', '/auth/register', 'POST', { name: 'No Invitation', email: 'no@example.test', password, registrationCode: 'shared-access-code' })).status, 403)
   const invite = await ok('admin', '/operations/invitations', 'POST', { email: 'invited@example.test', role: 'staff', permissions: ['assess'], doctorId: '' }, 201)
+  let pendingInvites = (await ok('admin', '/operations/invitations')).records
+  let pending = pendingInvites.find((item) => item.email === 'invited@example.test')
+  assert.equal(pending.status, 'pending')
+  assert.equal(pending.tokenHash, undefined)
+  assert.equal((await call('reception', '/operations/invitations')).status, 403)
+  const replacement = await ok('admin', `/operations/invitations/${pending.id}/replace`, 'POST', { version: pending.version })
+  assert.equal((await call('admin', `/operations/invitations/${pending.id}/replace`, 'POST', { version: pending.version })).status, 409)
+  assert.equal((await call('admin', '/auth/register', 'POST', { name: 'Invited Staff', email: pending.email, password, registrationCode: invite.code })).status, 403)
+  invite.code = replacement.code
   const registration = { name: 'Invited Staff', email: 'invited@example.test', password, registrationCode: invite.code }
   assert.equal((await ok('admin', '/auth/register', 'POST', registration, 201)).user.permissions[0], 'assess')
   assert.equal((await call('admin', '/auth/register', 'POST', registration)).status, 403)
+  assert.equal((await ok('admin', '/operations/invitations')).records.some((item) => item.id === pending.id), false)
+  const doctorInvite = await ok('admin', '/operations/invitations', 'POST', { email: 'newdoctor@example.test', role: 'doctor', permissions: [], doctorId: '', newDoctor: { name: 'New Test Doctor', specialty: 'Family medicine', phone: '' } }, 201)
+  pending = (await ok('admin', '/operations/invitations')).records.find((item) => item.email === 'newdoctor@example.test')
+  assert.ok(pending.doctor.id)
+  assert.equal((await call('admin', '/operations/invitations', 'POST', { email: 'duplicate@example.test', role: 'doctor', permissions: [], doctorId: pending.doctor.id })).status, 409)
+  await ok('admin', `/operations/invitations/${pending.id}/revoke`, 'POST', { version: pending.version })
+  assert.equal((await call('admin', '/auth/register', 'POST', { name: 'New Test Doctor', email: pending.email, password, registrationCode: doctorInvite.code })).status, 403)
+  assert.equal((await ok('admin', '/operations/invitations')).records.some((item) => item.id === pending.id), false)
+  await ok('admin', '/operations/invitations', 'POST', { email: 'expired@example.test', role: 'staff', permissions: [], doctorId: '' }, 201)
+  await operations.Invitation.updateOne({ email: 'expired@example.test' }, { $set: { expiresAt: new Date(Date.now() - 1000) } })
+  pending = (await ok('admin', '/operations/invitations')).records.find((item) => item.email === 'expired@example.test')
+  assert.equal(pending.status, 'expired')
+  await ok('admin', `/operations/invitations/${pending.id}/replace`, 'POST', { version: pending.version })
+  assert.equal((await ok('admin', '/operations/invitations')).records.find((item) => item.id === pending.id).status, 'pending')
   let patient = (await ok('reception', '/patients', 'POST', { name: 'Fictional Patient', dateOfBirth: '1990-01-01' }, 201)).record
   let arrival = { requestId: randomUUID(), kind: 'walk_in', patientId: patient.id, doctorId: doctorRecord.id, reason: 'Fictional consultation' }
   let encounter = (await ok('reception', '/encounters', 'POST', arrival, 201)).record

@@ -41,6 +41,32 @@ function mount(path) {
 }
 afterEach(() => vi.restoreAllMocks())
 describe('medicine and inventory screens', () => {
+  it('offers dosage forms and submits the selected label with medicine details', async () => {
+    getFixtures()
+    const post = vi.spyOn(api, 'post').mockRejectedValue(new Error('offline'))
+    const { user } = mount('/medicines/new')
+    await user.type(screen.getByLabelText(/^Generic name/), 'Fictional medicine')
+    await user.type(screen.getByLabelText(/^Strength/), '500 mg')
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Dosage form/ }), 'tablet')
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Stock unit/ }), 'tablet')
+    await user.click(screen.getByRole('button', { name: 'Save medicine' }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0][1].dosageForm).toBe('tablet')
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Dosage form/ }), 'other')
+    await user.type(screen.getByLabelText(/^Specify dosage form/), 'buccal film')
+    await user.click(screen.getByRole('button', { name: 'Save medicine' }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
+    expect(post.mock.calls[1][1].dosageForm).toBe('buccal film')
+  })
+
+  it('preserves a legacy dosage form and locks its selector when history exists', async () => {
+    getFixtures({ [`/medicines/${medId}`]: () => Promise.resolve({ data: { record: { ...medicine, dosageForm: 'legacy formulation' } } }) })
+    mount(`/medicines/${medId}/edit`)
+    const select = await screen.findByRole('combobox', { name: /^Dosage form/ })
+    expect(select.disabled).toBe(true)
+    expect(screen.getByLabelText(/^Specify dosage form/).value).toBe('legacy formulation')
+    expect(screen.getByLabelText(/^Specify dosage form/).readOnly).toBe(true)
+  })
   it('shows exact units and zero-stock status, and resets pagination when filtering', async () => {
     const get = vi.spyOn(api, 'get').mockResolvedValue(paged([{ ...medicine, quantity: 0, lowStock: true }]))
     const { user, router } = mount('/medicines?page=3')
@@ -65,7 +91,7 @@ describe('medicine and inventory screens', () => {
     const { user } = mount(`/medicines/${medId}/edit`)
     await screen.findByRole('heading', { name: 'Edit medicine' })
     expect(screen.getByLabelText(/Generic name/).readOnly).toBe(true)
-    expect(screen.getByLabelText(/Stock unit/).readOnly).toBe(true)
+    expect(screen.getByRole('combobox', { name: /^Stock unit/ }).disabled).toBe(true)
     await user.type(screen.getByLabelText(/Inventory notes/), 'Updated note')
     await user.clear(screen.getByLabelText(/Low-stock threshold/)); await user.type(screen.getByLabelText(/Low-stock threshold/), '4')
     await user.click(screen.getByRole('button', { name: 'Save medicine' }))

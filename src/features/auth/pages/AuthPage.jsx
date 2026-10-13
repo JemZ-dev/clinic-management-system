@@ -43,8 +43,8 @@ export default function AuthPage({ registration = false }) {
   return <>
     {registration && <Link to="/login" className="auth-back-link"><ArrowLeft size={18} aria-hidden="true" /><span>Back to sign in</span></Link>}
     <div className="auth-heading">
-      <h1>{registration ? 'Create your staff account' : 'Welcome back'}</h1>
-      <p>{registration ? 'Register with the single-use invitation supplied by your clinic administrator.' : 'Sign in to your clinic workspace.'}</p>
+      <h1>{registration ? 'Accept your employee invitation' : 'Welcome back'}</h1>
+      <p>{registration ? 'Use the email and code supplied by your clinic administrator. Your invitation sets your role and access.' : 'Sign in to your clinic workspace.'}</p>
     </div>
     {error && <Alert variant="danger" role="alert">{error}</Alert>}
     <Form onSubmit={submit} aria-busy={busy}>

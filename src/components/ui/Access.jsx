@@ -11,7 +11,7 @@ export default function AccessBoundary({ children }) {
   const { user } = useContext(AuthContext), { pathname } = useLocation()
   const section = pathname.split('/')[1]
   const editing = pathname.endsWith('/new') || pathname.endsWith('/edit')
-  const permissions = { accounts: ['accounts'], schedules: ['schedule'], billing: ['billing'], diagnostics: ['clinical', 'diagnostics', 'reception'], services: ['directory'], inventory: ['dispense'], visits: editing ? ['clinical'] : ['clinical', 'dispense'], medicines: editing ? ['dispense'] : ['directory'], patients: editing ? ['reception'] : ['directory'], doctors: editing ? ['accounts'] : ['directory'], appointments: editing ? ['reception'] : ['directory'], queue: editing ? ['reception'] : ['directory'] }
+  const permissions = { accounts: ['accounts'], schedules: ['schedule'], billing: ['billing'], diagnostics: ['clinical', 'diagnostics', 'reception'], services: ['directory'], inventory: ['dispense'], visits: editing ? ['clinical'] : ['clinical', 'dispense'], medicines: editing ? ['medicineCatalog'] : ['directory'], patients: editing ? ['reception'] : ['directory'], doctors: editing ? ['accounts'] : ['directory'], appointments: editing ? ['reception'] : ['directory'], queue: editing ? ['reception'] : ['directory'] }
   if (permissions[section] && !permissions[section].some((permission) => can(user, permission))) return <div className="directory-empty"><h1>Access restricted</h1><p>Your account is not assigned to this part of the clinic workflow.</p><Link to="/">Return to workspace</Link></div>
   return children
 }

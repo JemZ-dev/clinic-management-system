@@ -1,11 +1,57 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { can } from '../../shared/permissions.js'
-import { assessmentInput, scheduleInput, accountInput } from '../src/validators/workflow.js'
+import { assessmentInput, scheduleInput, accountInput, invitationInput, paymentInput } from '../src/validators/workflow.js'
+import { paymentCentavos, paymentErrors } from '../../shared/paymentValidation.js'
 import { scheduleAllows, invoiceTotals } from '../src/services/workflow.js'
 import { decodeReport } from '../src/routes/operations.js'
+import { requireStaff } from '../src/middleware/requireStaff.js'
 
-test('administrative access does not imply clinical or dispensing access', () => {
+test('payments enforce precision, limits, references, and supported methods', () => {
+  assert.equal(paymentCentavos('125.5'), 12550)
+  assert.equal(paymentCentavos('0.01'), 1)
+  assert.equal(paymentCentavos('1000000.00'), 100000000)
+  for (const value of ['0', '-1', '1e3', '1.234', '1000000.01']) assert.equal(paymentCentavos(value), null)
+  assert.ok(paymentErrors({ amount: '301', method: 'cash', reference: '' }, 30000).amount)
+  const base = { version: 0, requestId: '01234567-89ab-4cde-8fab-0123456789ab', amountCentavos: 12550, method: 'cash', reference: '' }
+  assert.equal(paymentInput.safeParse(base).success, true)
+  assert.equal(paymentInput.safeParse({ ...base, method: 'gcash', reference: 'GC-123/456' }).success, true)
+  for (const change of [{ method: 'gcash' }, { method: 'card' }, { method: 'bank_transfer' }, { reference: 'x'.repeat(51) }, { reference: '<script>' }, { amountCentavos: 100000001 }, { amountCentavos: 1.5 }]) {
+    assert.equal(paymentInput.safeParse({ ...base, ...change }).success, false)
+  }
+})
+
+test('doctor invitations support a new directory record or an existing link', () => {
+  const base = { email: 'doctor@example.com', role: 'doctor', permissions: [], doctorId: '' }
+  assert.equal(invitationInput.safeParse(base).success, false)
+  assert.equal(invitationInput.safeParse({ ...base, doctorId: '0123456789abcdef01234567' }).success, true)
+  const newDoctor = { name: ' Fictional Doctor ', specialty: ' Neurology ', phone: '' }
+  const parsed = invitationInput.parse({ ...base, newDoctor })
+  assert.equal(parsed.newDoctor.name, 'Fictional Doctor')
+  assert.equal(parsed.newDoctor.specialty, 'Neurology')
+  assert.equal(invitationInput.safeParse({ ...base, newDoctor, doctorId: '0123456789abcdef01234567' }).success, false)
+  assert.equal(invitationInput.safeParse({ ...base, role: 'staff', newDoctor }).success, false)
+  assert.equal(invitationInput.safeParse({ ...base, newDoctor: { ...newDoctor, specialty: '' } }).success, false)
+  assert.equal(invitationInput.safeParse({ ...base, newDoctor: { ...newDoctor, role: 'admin' } }).success, false)
+})
+
+test('administrators maintain medicine catalogs and stock', () => {
+  const admin = { role: 'admin', active: true }
+  assert.equal(can(admin, 'medicineCatalog'), true)
+  assert.equal(can(admin, 'dispense'), true)
+  assert.equal(can({ role: 'staff' }, 'medicineCatalog'), false)
+  assert.equal(can({ role: 'staff', permissions: ['dispense'] }, 'medicineCatalog'), true)
+  for (const [method, path] of [['POST', '/'], ['PATCH', '/medicine-id'], ['DELETE', '/medicine-id'], ['POST', '/medicine-id/restore']]) {
+    let allowed = false
+    requireStaff({ auth: { user: admin }, baseUrl: '/api/medicines', method, path }, {}, () => { allowed = true })
+    assert.equal(allowed, true)
+  }
+  let allowed = false
+  requireStaff({ auth: { user: admin }, baseUrl: '/api/medicines', method: 'POST', path: '/medicine-id/movements' }, {}, () => { allowed = true })
+  assert.equal(allowed, true)
+})
+
+test('administrative access does not imply clinical access', () => {
   assert.equal(can({ role: 'admin' }, 'accounts'), true)
   assert.equal(can({ role: 'admin' }, 'clinical'), false)
   assert.equal(can({ role: 'staff' }, 'clinical'), false)

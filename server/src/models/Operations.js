@@ -44,7 +44,7 @@ export const Invoice = mongoose.model('Invoice', invoiceSchema)
 const invitationSchema = new mongoose.Schema({
   email: { type: String, required: true }, tokenHash: { type: String, required: true, unique: true },
   role: { type: String, enum: ['admin', 'staff', 'doctor'], required: true }, permissions: [String], doctorId: ref('Doctor'),
-  expiresAt: Date, usedAt: Date, createdBy: ref('User', true),
+  expiresAt: Date, usedAt: Date, revokedAt: Date, createdBy: ref('User', true),
 }, options)
 export const Invitation = mongoose.model('Invitation', invitationSchema)
 export const AuditEvent = mongoose.model('AuditEvent', new mongoose.Schema({ action: String, target: String, actor, at: { type: Date, default: Date.now }, detail: String }))
