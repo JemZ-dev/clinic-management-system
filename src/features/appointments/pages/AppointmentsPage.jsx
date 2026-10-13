@@ -1,3 +1,4 @@
+import { Access } from '../../../components/ui/Access.jsx'
 import DirectorySearch from '../../../components/ui/DirectorySearch.jsx'
 import PaginationControls from '../../../components/ui/PaginationControls.jsx'
 import { Link, useLocation, useSearchParams } from 'react-router'
@@ -10,8 +11,8 @@ import AppointmentTable from '../components/AppointmentTable.jsx'
 import { STATUS_LABELS } from '../appointments.constants.js'
 import { clinicToday } from '../../../lib/clinicTime.js'
 
-function SearchAppointments({ query, onSearch }) {
-  return <DirectorySearch id="appointment-search" label="Search patient, patient ID, or doctor" initialValue={query} onSearch={onSearch} />
+function SearchAppointments({ query, onSearch, loading }) {
+  return <DirectorySearch id="appointment-search" label="Search patient, patient ID, or doctor" initialValue={query} onSearch={onSearch} loading={loading} />
 }
 
 export default function AppointmentsPage() {
@@ -34,11 +35,11 @@ export default function AppointmentsPage() {
   const scoped = params.has('patientId') || params.has('doctorId')
   const backTo = `${location.pathname}${location.search}`
   return <>
-    <header className="page-heading"><div><h1>Appointments</h1><p>Book and manage the clinic schedule. All times are in Manila time.</p></div><Button as={Link} to="/appointments/new" state={{ backTo }}><Plus size={17} aria-hidden="true" />Book appointment</Button></header>
+    <header className="page-heading"><div><h1>Appointments</h1><p>Book and manage the clinic schedule. All times are in Manila time.</p></div><Access permission="reception"><Button as={Link} to="/appointments/new" state={{ backTo }}><Plus size={17} aria-hidden="true" />Book appointment</Button></Access></header>
     <section className="directory-panel" aria-label="Appointment directory">
-      <div className="appointment-toolbar"><SearchAppointments key={query} query={query} onSearch={(q) => filter({ q })} /><Form.Group controlId="appointment-date-filter"><Form.Label>Date</Form.Label><Form.Control type="date" value={date} onChange={(event) => filter({ date: event.target.value })} /></Form.Group><Form.Group controlId="appointment-status-filter"><Form.Label>Status</Form.Label><Form.Select value={status} onChange={(event) => filter({ status: event.target.value })}><option value="all">All statuses</option>{Object.entries(STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Form.Select></Form.Group></div>
+      <div className="appointment-toolbar"><SearchAppointments loading={resource.loading} query={query} onSearch={(q) => filter({ q })} /><Form.Group controlId="appointment-date-filter"><Form.Label>Date</Form.Label><Form.Control type="date" value={date} onChange={(event) => filter({ date: event.target.value })} /></Form.Group><Form.Group controlId="appointment-status-filter"><Form.Label>Status</Form.Label><Form.Select value={status} onChange={(event) => filter({ status: event.target.value })}><option value="all">All statuses</option>{Object.entries(STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Form.Select></Form.Group></div>
       <div className="appointment-filter-actions"><Button variant="link" onClick={() => filter({ date: clinicToday() })}>Today</Button><Button variant="link" onClick={() => filter({ date: '' })}>All dates</Button>{scoped && <><span>Showing appointments for the selected record.</span><Button variant="link" onClick={() => filter({ patientId: null, doctorId: null })}>Clear record filter</Button></>}</div>
-      {resource.loading ? <AsyncState loading title="Loading appointments" message="Fetching the latest schedule…" /> : resource.error ? <AsyncState title="Unable to load appointments" message={resource.error} onRetry={resource.reload} /> : !resource.data.records.length ? <div className="directory-empty" role="status"><h2>{query || status !== 'all' || scoped ? 'No matching appointments' : 'No appointments for this period'}</h2><p>{query || status !== 'all' || scoped ? 'Change the filters or search to see other appointments.' : 'Book an appointment to add it to the clinic schedule.'}</p><Button as={Link} to="/appointments/new" state={{ backTo }}>Book appointment</Button></div> : <>
+      {resource.loading ? <AsyncState loading title="Loading appointments" message="Fetching the latest schedule…" /> : resource.error ? <AsyncState title="Unable to load appointments" message={resource.error} onRetry={resource.reload} /> : !resource.data.records.length ? <div className="directory-empty" role="status"><h2>{query || status !== 'all' || scoped ? 'No matching appointments' : 'No appointments for this period'}</h2><p>{query || status !== 'all' || scoped ? 'Change the filters or search to see other appointments.' : 'Book an appointment to add it to the clinic schedule.'}</p><Access permission="reception"><Button as={Link} to="/appointments/new" state={{ backTo }}>Book appointment</Button></Access></div> : <>
         <AppointmentTable records={resource.data.records} backTo={backTo} />
         <div className="directory-pagination"><p role="status">{(resource.data.pagination.page - 1) * resource.data.pagination.limit + 1}–{Math.min(resource.data.pagination.page * resource.data.pagination.limit, resource.data.pagination.total)} of {resource.data.pagination.total} appointments</p><Form.Group controlId="appointment-page-size" className="page-size"><Form.Label>Per page</Form.Label><Form.Select value={String(resource.data.pagination.limit)} onChange={(event) => filter({ limit: event.target.value })}><option>10</option><option>25</option><option>50</option></Form.Select></Form.Group><PaginationControls page={resource.data.pagination.page} pages={resource.data.pagination.pages} label="Appointment pages" onPageChange={(page) => filter({ page: String(page) })} /></div>
       </>}

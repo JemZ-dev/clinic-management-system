@@ -6,6 +6,7 @@ export default function useApiResource(path) {
   const [result, setResult] = useState(null)
   const key = `${path}:${revision}`
   useEffect(() => {
+    if (!path) return
     const controller = new AbortController()
     api.get(path, { signal: controller.signal }).then(({ data }) => {
       if (!controller.signal.aborted) setResult({ key, data })

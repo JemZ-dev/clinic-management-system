@@ -6,6 +6,7 @@ const date = z.string().refine(validDate, 'Enter a real calendar date.')
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):(?:00|30)$/, 'Choose a time on the hour or half-hour.')
 export const appointmentSchema = z.object({
   patientId: recordIdSchema, doctorId: recordIdSchema, date, time,
+  followUpEncounterId: recordIdSchema.optional(),
   reason: z.string().trim().max(500, 'Use 500 characters or fewer.').default(''),
 }).strict()
 export const appointmentUpdateSchema = appointmentSchema.extend({ version: versionSchema.shape.version })

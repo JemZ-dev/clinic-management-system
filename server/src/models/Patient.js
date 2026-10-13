@@ -6,6 +6,8 @@ const schema = new mongoose.Schema({
   patientId: { type: String, required: true, unique: true, immutable: true, default: () => `PT-${randomBytes(6).toString('hex').toUpperCase()}` },
   name: { type: String, required: true, trim: true, maxlength: 100 },
   dateOfBirth: { type: String, required: true },
+  gender: { type: String, enum: ['', 'female', 'male', 'non_binary', 'other', 'prefer_not_to_say'], default: '' },
+  guardian: { name: shortText(100), relationship: shortText(80), phone: shortText(30) },
   phone: shortText(30), email: shortText(254), address: shortText(500),
   emergencyContact: { name: shortText(100), relationship: shortText(80), phone: shortText(30) },
   medicalHistory: { allergies: shortText(2000), conditions: shortText(2000), pastSurgeries: shortText(2000), currentMedications: shortText(2000) },

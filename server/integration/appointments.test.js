@@ -1,5 +1,6 @@
+import { inviteFixture, scheduleFixture } from './fixtures.js'
 import assert from 'node:assert/strict'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
 import test from 'node:test'
 import mongoose from 'mongoose'
@@ -12,6 +13,7 @@ import { Session } from '../src/models/Session.js'
 import { Patient } from '../src/models/Patient.js'
 import { Doctor } from '../src/models/Doctor.js'
 import { Appointment } from '../src/models/Appointment.js'
+import { Encounter } from '../src/models/Encounter.js'
 import { Visit } from '../src/models/Visit.js'
 import { clinicDate, clinicDayRange, appointmentStart, SLOT_MS } from '../src/utils/clinicTime.js'
 
@@ -28,6 +30,7 @@ test('appointment HTTP workflows reject concurrent conflicts and preserve cancel
   })
   await connectDatabase({ ...getConfig(), dbName }); connected = true
   await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init(), Visit.init()])
+  await inviteFixture('scheduling@example.com', config.registrationCode, 'staff', [])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`
@@ -43,6 +46,7 @@ test('appointment HTTP workflows reject concurrent conflicts and preserve cancel
   const userId = (await registered.json()).user.id
   const patients = await Promise.all(['Fictional Alpha', 'Fictional Beta'].map((name) => Patient.create({ name, dateOfBirth: '2000-01-01', createdBy: userId, updatedBy: userId })))
   const doctors = await Promise.all(['Fictional Doctor One', 'Fictional Doctor Two'].map((name) => Doctor.create({ name, specialty: 'Family medicine', createdBy: userId, updatedBy: userId })))
+  await scheduleFixture(doctors)
   const tomorrow = clinicDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
   const booking = { patientId: patients[0].id, doctorId: doctors[0].id, date: tomorrow, time: '09:00', reason: 'Fictional follow-up' }
   assert.equal((await call('/appointments', 'POST', booking, false)).status, 401)
@@ -124,11 +128,15 @@ test('appointment HTTP workflows reject concurrent conflicts and preserve cancel
   assert.equal(dashboard.todayTotal, 1)
   assert.equal(dashboard.appointments[0].id, seeded.id)
   assert.equal((await call(`/appointments/${seeded.id}/status`, 'PATCH', { status: 'completed', version: 1 })).status, 409)
-  const visit = await call('/visits', 'POST', { requestId: randomUUID(), patientId: patients[0].id, doctorId: doctors[0].id, appointmentId: seeded.id, appointmentVersion: 1, date: today, reason: 'Fictional consultation' })
-  assert.equal(visit.status, 201)
-  const completion = await call(`/appointments/${seeded.id}/status`, 'PATCH', { status: 'completed', version: 2 })
+  await User.updateOne({ _id: userId }, { $set: { role: 'doctor', doctorId: doctors[0].id } })
+  let encounter = await Encounter.findOne({ appointmentId: seeded.id })
+  assert.equal((await call(`/encounters/${encounter.id}/assessment`, 'POST', { version: 0, weight: 60, height: 165, systolic: 120, diastolic: 80, measuredAt: new Date().toISOString() })).status, 200)
+  assert.equal((await call(`/encounters/${encounter.id}/action`, 'POST', { version: 1, action: 'start' })).status, 200)
+  assert.equal((await call(`/encounters/${encounter.id}/draft`, 'PUT', { version: 2, reason: 'Fictional consultation' })).status, 200)
+  const completion = await call(`/encounters/${encounter.id}/finalize`, 'POST', { version: 3 })
   assert.equal(completion.status, 200)
-  assert.equal((await completion.json()).record.statusHistory.length, 3)
+  assert.equal((await Appointment.findById(seeded.id)).statusHistory.length, 3)
+  await User.updateOne({ _id: userId }, { $set: { role: 'staff', doctorId: null } })
   const noShowStart = new Date(range.start.valueOf() + SLOT_MS)
   const missed = await Appointment.create({ patientId: patients[0].id, doctorId: doctors[0].id, startsAt: noShowStart, endsAt: new Date(noShowStart.valueOf() + SLOT_MS), status: 'scheduled', statusHistory: [{ status: 'scheduled', at: noShowStart, by: userId }], createdBy: userId, updatedBy: userId })
   // At the first half-hour of a day this no-show fixture is not yet due.

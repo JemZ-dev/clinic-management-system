@@ -1,5 +1,6 @@
 /* Cliniqo care desk: UI/UX Pro Max enterprise guidance, adapted to clinic workflows. */
 @font-face { font-family: 'Manrope'; src: url('/fonts/manrope/Manrope-Variable.ttf') format('truetype'); font-style: normal; font-weight: 200 800; font-display: swap; }
+@font-face { font-family: 'FlechaM'; src: url('/fonts/flecha-m/FlechaM-Medium.woff2') format('woff2'); font-style: normal; font-weight: 500; font-display: swap; }
 body { margin: 0; min-width: 320px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
 html { scrollbar-color: var(--control-border) var(--canvas); scrollbar-width: thin; }
 ::selection { background: var(--accent-subtle); color: var(--accent-hover); }
@@ -48,18 +49,18 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 
 /* Application frame */
 .brand { display: flex; gap: 10px; align-items: center; color: var(--text-primary); font-size: 22px; font-weight: 800; letter-spacing: -.035em; line-height: 1.2; }
-.brand-symbol { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--on-accent); background: var(--accent); }
-.brand-symbol svg { width: 20px; height: 20px; }
+.brand-symbol { width: 52px; height: 52px; padding: 3px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; }
+.brand-symbol img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .brand-subtitle { display: block; font-size: 10px; font-weight: 500; letter-spacing: 0; color: var(--text-secondary); margin-top: 4px; }
 .app-layout { display: flex; min-height: 100dvh; }
-.desktop-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); padding: 28px 14px 20px; background: var(--nav-surface); display: flex; flex-direction: column; overflow-y: auto; }
+.desktop-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); padding: 28px 14px 20px; background: var(--nav-surface); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
+.desktop-sidebar::-webkit-scrollbar { display: none; }
 .desktop-sidebar .brand { margin: 0 10px 38px; flex-shrink: 0; }
 .clinic-nav { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
 .clinic-nav a { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 42px; border-radius: var(--radius-control); color: var(--nav-secondary); text-decoration: none; font-size: 13px; font-weight: 550; transition: background-color var(--duration-feedback) ease, color var(--duration-feedback) ease; }
 .clinic-nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
 .clinic-nav a.active { background: var(--surface); color: var(--accent-hover); font-weight: 750; }
 .sidebar-footer { margin-top: auto; padding-top: 28px; flex-shrink: 0; }
-.sidebar-note { font-size: 12px; color: var(--nav-secondary); padding: 0 12px 16px; }
 .logout-button { border-top: 1px solid var(--nav-hover); border-radius: 0; width: 100%; justify-content: flex-start; padding: 16px 12px 0; font-size: 13px; font-weight: 600; color: var(--nav-secondary); text-decoration: none; }
 .app-body { margin-left: var(--sidebar-width); flex: 1; min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 50; min-height: 64px; padding: 10px 32px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -132,7 +133,7 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .search-field:focus-within { border-color: var(--text-secondary); }
 .search-field .form-control { min-width: 0; min-height: 30px; height: 30px; padding: 3px 0; border: 0; background: transparent; font-size: 13px; box-shadow: none; }
 .search-field .form-control:focus-visible { box-shadow: none; }
-.search-controls > .btn { min-height: 36px; height: 36px; padding-inline: 12px; font-size: 13px; flex-shrink: 0; }
+.search-progress { width: 14px; height: 14px; border-width: 2px; flex-shrink: 0; color: var(--text-secondary); }
 .directory-toolbar .form-select, .appointment-toolbar .form-select, .appointment-toolbar input[type='date'], .page-size .form-select { min-height: 36px; height: 36px; background-color: var(--surface); border-color: var(--field-border); padding: 6px 30px 6px 10px; font-size: 13px; }
 .directory-toolbar option, .appointment-toolbar option, .page-size option { background: var(--surface); color: var(--text-primary); }
 .appointment-filter-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border); padding: 8px 12px; }
@@ -285,6 +286,10 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .profile-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .profile-field-grid > * { min-width: 0; }
 .profile-field-grid .full-width { grid-column: 1 / -1; }
+.profile-read-field { margin: 0; }
+.profile-read-field dt { margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.profile-read-field dd { margin: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--canvas); font-size: 14px; font-weight: 500; color: var(--text-primary); overflow-wrap: anywhere; }
+.profile-read-field.is-empty dd { color: var(--text-secondary); font-weight: 400; }
 .profile-save-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--canvas); }
 .profile-save-bar > span { font-size: 12px; color: var(--text-secondary); }
 .profile-save-bar > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -300,16 +305,15 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 /* Full-screen authentication, no image and no floating card. */
 .auth-layout { min-height: 100dvh; background: var(--surface); }
 .auth-shell { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); }
-.auth-intro { display: flex; flex-direction: column; padding: 40px clamp(32px, 5vw, 80px); background: var(--nav-surface); color: var(--nav-text); }
+.auth-intro { display: flex; flex-direction: column; padding: clamp(24px, 4dvh, 40px) clamp(32px, 5vw, 80px); background: var(--nav-surface); color: var(--nav-text); }
 .auth-brand { margin: 0; }
-.auth-story { margin-block: auto; padding: 64px 0 40px; max-width: 500px; }
-.auth-story h2 { font-size: clamp(34px, 3.2vw, 48px); line-height: 1.18; font-weight: 650; letter-spacing: -.03em; margin-bottom: 24px; text-wrap: balance; }
+.auth-story { margin-block: auto; padding: clamp(24px, 5dvh, 48px) 0 clamp(24px, 4dvh, 40px); max-width: 500px; }
+.auth-story h2 { font-family: 'FlechaM', Georgia, serif; font-size: clamp(36px, 3.4vw, 52px); line-height: 1.08; font-weight: 600; letter-spacing: .04em; margin-bottom: 24px; text-wrap: balance; }
 .auth-story h2 span { color: var(--nav-secondary); }
-.auth-story > p { color: var(--nav-secondary); font-size: 15px; line-height: 1.7; max-width: 42ch; margin: 0; }
-.auth-workflow-list { margin: 0 0 40px; padding: 0; list-style: none; }
+.auth-story > p { color: var(--nav-secondary); font-size: 15px; line-height: 1.7; font-weight: 600; max-width: 42ch; margin: 0; }
+.auth-workflow-list { margin: 0; padding: 0; list-style: none; }
 .auth-workflow-list li { display: flex; gap: 16px; align-items: flex-start; padding: 18px 0; border-top: 1px solid var(--nav-hover); font-size: 13px; color: var(--nav-text); }
 .auth-workflow-list svg { color: var(--nav-secondary); flex-shrink: 0; margin-top: 2px; }
-.auth-intro-footer { font-size: 12px; color: var(--nav-secondary); margin: 0; }
 .auth-content { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px; }
 .auth-panel { width: 100%; max-width: 408px; }
 .auth-heading { margin-bottom: 32px; }
@@ -328,17 +332,18 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
 .modal-header { padding: 18px 22px; }
 .modal-body { padding: 22px; overflow-wrap: anywhere; font-size: 13px; }
 .modal-footer { padding: 14px 22px; background: var(--canvas); }
+.unsaved-changes-modal-content { border: 0; background: var(--surface); box-shadow: 0 16px 48px rgb(15 23 42 / 18%); }
+.unsaved-changes-modal-content .modal-header, .unsaved-changes-modal-content .modal-footer { border: 0; background: var(--surface); }
 .modal .record-field + .record-field { margin-top: 18px; }
 .record-mutation-action { min-width: 130px; }
 
 /* Shared desk details: brand surfaces, control groups, and document hierarchy. */
 .desktop-sidebar .brand, .mobile-nav .brand, .auth-intro .brand { color: var(--nav-text); }
 .desktop-sidebar .brand-subtitle, .mobile-nav .brand-subtitle, .auth-intro .brand-subtitle { color: var(--nav-secondary); font-size: 11px; line-height: 1.5; }
-.desktop-sidebar .brand-symbol, .mobile-nav .brand-symbol, .auth-intro .brand-symbol { background: var(--surface); color: var(--accent-hover); }
+.desktop-sidebar .brand-symbol, .mobile-nav .brand-symbol, .auth-intro .brand-symbol { background: #fff; }
 .desktop-sidebar :focus-visible, .mobile-nav :focus-visible { outline-color: var(--nav-text); }
 .mobile-nav .btn-close { filter: invert(1); }
 .search-label { font-size: 12px; font-weight: 600; line-height: 1.5; }
-.search-controls { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .search-clear.btn { min-height: 28px; width: 28px; padding: 0; flex-shrink: 0; border: 0; color: var(--text-secondary); }
 .search-field input::-webkit-search-cancel-button { appearance: none; }
 .directory-panel { overflow: hidden; }
@@ -403,7 +408,7 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
   .record-search { flex-basis: 100%; max-width: none; }
   .search-field { height: 44px; }
   .search-field .form-control { height: 40px; min-height: 40px; font-size: 16px; }
-  .search-controls > .btn, .directory-toolbar .form-select, .appointment-toolbar .form-select, .appointment-toolbar input[type='date'], .page-size .form-select, .page-controls .btn { height: 44px; min-height: 44px; }
+  .directory-toolbar .form-select, .appointment-toolbar .form-select, .appointment-toolbar input[type='date'], .page-size .form-select, .page-controls .btn { height: 44px; min-height: 44px; }
   .directory-toolbar .form-select, .appointment-toolbar .form-select, .appointment-toolbar input[type='date'], .page-size .form-select { font-size: 16px; }
   .directory-pagination { padding: 14px 16px; }
   .page-controls { flex-basis: 100%; justify-content: space-between; }
@@ -427,22 +432,60 @@ dd { font-size: 14px; color: var(--text-primary); margin: 0; overflow-wrap: anyw
   .auth-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .auth-intro { padding: 24px; border-right: 0; }
   .auth-story { padding: 0; margin: 18px 0 0; }
-  .auth-story h2 { font-size: 24px; margin: 0; }
+  .auth-story h2 { font-size: 28px; margin: 0; }
   .auth-story h2 br { display: none; }
   .auth-story h2 span { display: none; }
-  .auth-story p, .auth-workflow-list, .auth-intro-footer { display: none; }
+  .auth-story p, .auth-workflow-list { display: none; }
   .auth-content { padding: 32px 24px; }
   .auth-panel .form-control, .auth-panel .submit-button, .password-toggle { min-height: 44px; }
   .medicine-picker-search { flex-wrap: wrap; }
   .medicine-picker-search > div { flex-basis: 100%; }
   .low-stock-quantity { min-width: 90px; }
   .search-clear.btn { min-height: 44px; width: 44px; }
-  .search-controls { gap: 8px; }
-  .search-controls > .btn { font-size: 13px; }
   .modal-header, .modal-body { padding: 18px; }
   .modal-footer { padding: 14px 18px; }
   .section-heading { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Operational workflow screens share the existing compact, neutral controls. */
+.workflow-toolbar { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.workflow-toolbar .record-search { flex:1; min-width:220px; }
+.workflow-field { min-width:0; margin-bottom:16px; }
+.workflow-toolbar .workflow-field { margin-bottom:0; min-width:170px; }
+.workflow-tabs { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.workflow-tabs a { padding:12px 16px; color:var(--text-secondary); text-decoration:none; border-bottom:2px solid transparent; }
+.workflow-tabs a[aria-current="page"] { color:var(--accent); border-bottom-color:var(--accent); font-weight:700; }
+.workflow-editor { background:var(--canvas); border:1px solid var(--border); border-radius:10px; padding:20px; margin:16px 0 24px; }
+.workflow-details { margin-top:20px; padding:16px 0; border-top:1px solid var(--border); }
+.workflow-details summary { cursor:pointer; font-weight:600; margin-bottom:12px; }
+.workflow-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; padding:20px 0; }
+.workflow-totals div { display:flex; flex-direction:column; gap:6px; }
+.workflow-totals strong { font-size:24px; font-variant-numeric:tabular-nums; }
+.workflow-voided { opacity:.65; }
+.workflow-voided td:first-child { text-decoration:line-through; }
+.workflow-pagination { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; padding-top:16px; }
+.workflow-pagination > span:first-child { margin-right:auto; }
+.workflow-schedule-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:12px; align-items:center; }
+.workflow-code { display:block; overflow-wrap:anywhere; margin:16px 0; }
+.workflow-action { display:inline-flex; flex-direction:column; gap:8px; }
+.workflow-note { white-space:pre-wrap; }
+.desktop-sidebar .clinic-nav { min-height:0; overflow-y:auto; flex:1; scrollbar-width:none; }
+.desktop-sidebar .clinic-nav::-webkit-scrollbar { display:none; }
+@media (max-width:767px) {
+  .workflow-toolbar { align-items:stretch; }
+  .workflow-toolbar .record-search { flex-basis:100%; }
+  .workflow-schedule-row { grid-template-columns:1fr; border-bottom:1px solid var(--border); padding-bottom:16px; }
+  .workflow-totals { gap:12px; }
+  .workflow-totals strong { font-size:19px; }
+  .workflow-tabs a { padding:12px; }
+}
+@media print {
+  .desktop-sidebar,.topbar,.workflow-tabs,.record-back,.no-print,.workflow-action,.workspace-section button,.page-heading a { display:none!important; }
+  .app-body { margin-left:0!important; width:100%!important; }
+  .main-content { padding:0!important; }
+  .workspace-section { border:0!important; }
+  .table-responsive { overflow:visible!important; }
 }

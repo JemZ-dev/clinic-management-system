@@ -18,12 +18,13 @@ function clinicToday() {
 function RecordForm({ config, record }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [initial] = useState(() => record ? Object.fromEntries(config.fields.map((field) => [field, record[field]])) : structuredClone(config.defaults))
+  const [initial] = useState(() => record ? Object.fromEntries(config.fields.map((field) => [field, record[field] ?? structuredClone(config.defaults[field])])) : structuredClone(config.defaults))
   const [values, setValues] = useState(initial)
   const [errors, setErrors] = useState({})
   const [error, setError] = useState('')
   const [conflict, setConflict] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false)
   const guard = useRef(true)
   const dirty = JSON.stringify(values) !== JSON.stringify(initial)
   const patient = config.kind === 'patients'
@@ -42,7 +43,7 @@ function RecordForm({ config, record }) {
     event.preventDefault()
     setBusy(true); setError(''); setErrors({}); setConflict(false)
     try {
-      const response = record ? await api.patch(`/${config.kind}/${record.id}`, { ...values, version: record.version }) : await api.post(`/${config.kind}`, values)
+      const response = record ? await api.patch(`/${config.kind}/${record.id}`, { ...values, version: record.version }) : await api.post(`/${config.kind}`, { ...values, ...(patient ? { duplicateAcknowledged } : {}) })
       guard.current = false
       navigate(`/${config.kind}/${response.data.record.id}`, { replace: true, state: { backTo, notice: `${config.singular === 'patient' ? 'Patient' : 'Doctor'} ${record ? 'updated' : 'added'} successfully.` } })
     } catch (failure) {
@@ -55,16 +56,19 @@ function RecordForm({ config, record }) {
     <Link to={cancelTo} state={{ backTo }} className="record-back"><ArrowLeft size={16} aria-hidden="true" />{record ? `Back to ${config.singular}` : `Back to ${config.kind}`}</Link>
     <header className="page-heading"><div><h1>{record ? 'Edit' : 'Add'} {config.singular}</h1><p>{patient ? 'Keep the patient’s details and medical history accurate.' : 'Maintain the doctor’s directory and contact details.'}</p></div></header>
     <Form onSubmit={save} className="record-form">
-      {error && <Alert variant="danger" role="alert" tabIndex={-1} id="record-form-error">{error}{conflict && <p className="mb-0 mt-2">Your changes are still here. Open the <Link to={`/${config.kind}/${record.id}`} state={{ backTo }}>latest record</Link> before editing again.</p>}</Alert>}
+      {error && <Alert variant="danger" role="alert" tabIndex={-1} id="record-form-error">{error}{conflict && record && <p className="mb-0 mt-2">Your changes are still here. Open the <Link to={`/${config.kind}/${record.id}`} state={{ backTo }}>latest record</Link> before editing again.</p>}</Alert>}
+      {errors.duplicate && <Alert variant="warning"><Link to={`/patients?q=${encodeURIComponent(values.name)}`}>Review existing patients</Link><Form.Check id="confirm-separate-patient" label="I verified that this is a different person" checked={duplicateAcknowledged} onChange={(event) => setDuplicateAcknowledged(event.target.checked)} /></Alert>}
       <fieldset disabled={busy}>
         <section className="workspace-section" aria-labelledby="basic-form-title"><h2 id="basic-form-title">{patient ? 'Patient details' : 'Doctor details'}</h2><p className="section-description">Fields marked * are required.</p><div className="record-form-grid">
           {field('name', 'Full name', { required: true, maxLength: 100, autoComplete: 'off' })}
           {patient ? field('dateOfBirth', 'Birth date', { required: true, type: 'date', min: '1900-01-01', max: clinicToday() }) : field('specialty', 'Specialty', { required: true, maxLength: 100, help: 'For example, Family medicine.' })}
+          {patient && <Form.Group controlId="patient-gender"><Form.Label>Gender <span className="optional-label">Optional</span></Form.Label><Form.Select value={values.gender || ''} onChange={(event) => change('gender', event.target.value)}>{[['', 'Not recorded'], ['female', 'Female'], ['male', 'Male'], ['non_binary', 'Non-binary'], ['other', 'Other'], ['prefer_not_to_say', 'Prefer not to say']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Form.Select></Form.Group>}
           {field('phone', 'Phone number', { type: 'tel', maxLength: 30, autoComplete: 'off' })}
           {field('email', 'Email address', { type: 'email', maxLength: 254, autoComplete: 'off' })}
           {patient && field('address', 'Address', { multiline: true, maxLength: 500, autoComplete: 'off' })}
         </div></section>
         {patient && <>
+          <section className="workspace-section"><h2>Guardian, if applicable</h2><div className="record-form-grid">{field('guardian.name', 'Guardian name', { maxLength: 100 })}{field('guardian.relationship', 'Relationship to patient', { maxLength: 80 })}{field('guardian.phone', 'Guardian phone', { maxLength: 30, type: 'tel' })}</div></section>
           <section className="workspace-section" aria-labelledby="emergency-form-title"><h2 id="emergency-form-title">Emergency contact</h2><div className="record-form-grid">
             {field('emergencyContact.name', 'Contact name', { maxLength: 100, autoComplete: 'off' })}
             {field('emergencyContact.relationship', 'Relationship', { maxLength: 80 })}

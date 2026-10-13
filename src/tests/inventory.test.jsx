@@ -33,7 +33,7 @@ function getFixtures(overrides = {}) {
 }
 function mount(path) {
   const logout = vi.fn()
-  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff' }, logout }}><AppLayout /></AuthContext>, children: [
+  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff', role: 'doctor', doctorId: doctor.id, permissions: ['dispense'] }, logout }}><AppLayout /></AuthContext>, children: [
     { path: '/', element: <ClinicOverview /> }, { path: '/medicines', element: <MedicinesPage /> }, { path: '/medicines/new', element: <MedicineFormPage /> }, { path: '/medicines/:id/edit', element: <MedicineFormPage editing /> }, { path: '/medicines/:id', element: <MedicineDetailsPage /> }, { path: '/inventory', element: <InventoryPage /> }, { path: '/visits/new', element: <VisitFormPage /> }, { path: '/visits/:id', element: <VisitDetailsPage /> },
   ] }], { initialEntries: [path] })
   render(<RouterProvider router={router} />)

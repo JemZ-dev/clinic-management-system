@@ -1,4 +1,6 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import mongoose from 'mongoose'
+import { Invitation, AuditEvent } from '../models/Operations.js'
 import jwt from 'jsonwebtoken'
 import { User, publicUser } from '../models/User.js'
 import { Session } from '../models/Session.js'
@@ -26,14 +28,15 @@ export function createAuthService(config) {
 
   return {
     async register(input) {
-      const digest = (value) => createHmac('sha256', config.jwtSecret).update(value).digest()
-      if (!timingSafeEqual(digest(input.registrationCode), digest(config.registrationCode))) {
-        throw new HttpError(403, 'The clinic access code is incorrect.', { registrationCode: 'Check the code with your clinic administrator.' })
-      }
       const passwordHash = await hashPassword(input.password)
       let user
       try {
-        user = await User.create({ name: input.name, email: input.email, passwordHash })
+        await mongoose.connection.transaction(async (session) => {
+          const invite = await Invitation.findOneAndUpdate({ tokenHash: createHash('sha256').update(input.registrationCode).digest('hex'), email: input.email, usedAt: null, expiresAt: { $gt: new Date() } }, { $set: { usedAt: new Date() } }, { session, returnDocument: 'after' })
+          if (!invite) throw new HttpError(403, 'The invitation is invalid, expired, or belongs to another email.', { registrationCode: 'Ask your clinic administrator for a new invitation.' })
+          ;[user] = await User.create([{ name: input.name, email: input.email, passwordHash, role: invite.role, permissions: invite.permissions, doctorId: invite.doctorId || null }], { session })
+          await AuditEvent.create([{ action: 'account_registered', target: user.id, actor: { id: user.id, name: user.name } }], { session })
+        })
       } catch (error) {
         if (error.code === 11000) throw new HttpError(409, 'An account with this email already exists.', { email: 'Use another email or sign in.' })
         throw error
@@ -43,7 +46,7 @@ export function createAuthService(config) {
     async login(input) {
       const user = await User.findOne({ email: input.email }).select('+passwordHash')
       const matches = await verifyPassword(input.password, user?.passwordHash || await dummyHash)
-      if (!user || !matches) throw new HttpError(401, 'The email or password is incorrect.')
+      if (!user || !matches || user.active === false) throw new HttpError(401, 'The email or password is incorrect, or this account is inactive.')
       return createSession(user)
     },
     async authenticate(token) {
@@ -59,7 +62,7 @@ export function createAuthService(config) {
       const session = await Session.findOne({ _id: payload.jti, userId: payload.sub, expiresAt: { $gt: new Date() } })
       if (!session) throw new HttpError(401, 'Your session has ended. Please sign in again.')
       const user = await User.findById(payload.sub)
-      if (!user) throw new HttpError(401, 'Please sign in again.')
+      if (!user || user.active === false) throw new HttpError(401, 'Your account is inactive. Contact the clinic administrator.')
       return { user: publicUser(user), sessionId: session._id }
     },
     async logout(sessionId) {

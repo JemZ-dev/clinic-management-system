@@ -10,6 +10,8 @@ import { Appointment } from './models/Appointment.js'
 import { Visit } from './models/Visit.js'
 import { Medicine } from './models/Medicine.js'
 import { StockMovement } from './models/StockMovement.js'
+import { Encounter } from './models/Encounter.js'
+import { DoctorSchedule, ClinicService, DiagnosticOrder, DiagnosticReport, Invoice, Invitation, AuditEvent } from './models/Operations.js'
 
 let server
 let stopping = false
@@ -29,7 +31,7 @@ try {
   const config = getConfig()
   const authConfig = getAuthConfig()
   await connectDatabase(config)
-  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init(), Visit.init(), Medicine.init(), StockMovement.init()])
+  await Promise.all([User, Session, Patient, Doctor, Appointment, Visit, Medicine, StockMovement, Encounter, DoctorSchedule, ClinicService, DiagnosticOrder, DiagnosticReport, Invoice, Invitation, AuditEvent].map((model) => model.init()))
   console.log('MongoDB connection verified.')
 
   const app = createApp({ pingDatabase, config: authConfig, authService: createAuthService(authConfig) })

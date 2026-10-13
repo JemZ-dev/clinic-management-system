@@ -44,7 +44,7 @@ export default function AuthPage({ registration = false }) {
     {registration && <Link to="/login" className="auth-back-link"><ArrowLeft size={18} aria-hidden="true" /><span>Back to sign in</span></Link>}
     <div className="auth-heading">
       <h1>{registration ? 'Create your staff account' : 'Welcome back'}</h1>
-      <p>{registration ? 'Register using the access code supplied by your clinic administrator.' : 'Sign in to your clinic workspace.'}</p>
+      <p>{registration ? 'Register with the single-use invitation supplied by your clinic administrator.' : 'Sign in to your clinic workspace.'}</p>
     </div>
     {error && <Alert variant="danger" role="alert">{error}</Alert>}
     <Form onSubmit={submit} aria-busy={busy}>
@@ -62,19 +62,19 @@ export default function AuthPage({ registration = false }) {
         <Form.Group className="mb-3" controlId="staff-password">
           <Form.Label>Password <span className="required-marker">*</span></Form.Label>
           <div className="password-control">
-            <Form.Control name="password" type={showPassword ? 'text' : 'password'} autoComplete={registration ? 'new-password' : 'current-password'} value={values.password} onChange={change} required minLength={registration ? 12 : 1} maxLength={128} isInvalid={!!fields.password} aria-describedby="password-help password-error" />
+            <Form.Control name="password" type={showPassword ? 'text' : 'password'} autoComplete={registration ? 'new-password' : 'current-password'} value={values.password} onChange={change} required minLength={registration ? 12 : 1} maxLength={128} isInvalid={!!fields.password} aria-describedby={registration ? 'password-help password-error' : 'password-error'} />
             <Button type="button" variant="link" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
               {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
             </Button>
           </div>
           {fields.password && <div className="field-error" id="password-error">{fields.password}</div>}
-          <Form.Text id="password-help">{registration ? 'Use at least 12 characters. A longer passphrase works well.' : 'Your password is case-sensitive.'}</Form.Text>
+          {registration && <Form.Text id="password-help">Use at least 12 characters. A longer passphrase works well.</Form.Text>}
         </Form.Group>
         {registration && <Form.Group className="mb-4" controlId="clinic-code">
-          <Form.Label>Clinic access code <span className="required-marker">*</span></Form.Label>
+          <Form.Label>Employee invitation code <span className="required-marker">*</span></Form.Label>
           <Form.Control name="registrationCode" type="password" autoComplete="off" value={values.registrationCode} onChange={change} required maxLength={128} isInvalid={!!fields.registrationCode} aria-describedby="code-help code-error" />
           <Form.Control.Feedback type="invalid" id="code-error">{fields.registrationCode}</Form.Control.Feedback>
-          <Form.Text id="code-help">This code is required to register a staff account.</Form.Text>
+          <Form.Text id="code-help">Use the invited email address. Invitations expire after 48 hours.</Form.Text>
         </Form.Group>}
         <SubmitButton busy={busy} className="w-100">{registration ? 'Create account' : 'Sign in'}</SubmitButton>
       </fieldset>

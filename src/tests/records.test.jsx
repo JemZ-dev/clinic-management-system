@@ -18,7 +18,7 @@ const detail = (value = record) => ({ data: { record: value } })
 
 function mount(path = '/patients/new', logout = vi.fn()) {
   const user = userEvent.setup()
-  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff' }, logout }}><AppLayout /></AuthContext>, children: [
+  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff', role: 'admin' }, logout }}><AppLayout /></AuthContext>, children: [
     { path: '/', element: <h1>Workspace</h1> },
     { path: '/patients', element: <RecordListPage config={patientsConfig} /> },
     { path: '/patients/new', element: <RecordFormPage config={patientsConfig} /> },
@@ -117,7 +117,6 @@ describe('patient and doctor workflows', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }))
     await waitFor(() => expect(router.state.location.search).toContain('page=2'))
     await user.type(screen.getByRole('searchbox'), 'Fictional')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await waitFor(() => expect(router.state.location.search).toContain('q=Fictional'))
     expect(router.state.location.search).toContain('page=1')
     await user.selectOptions(screen.getByLabelText('Records'), 'archived')
@@ -146,7 +145,6 @@ describe('patient and doctor workflows', () => {
     const { user } = mount('/patients')
     await screen.findByRole('heading', { name: 'No patients yet' })
     await user.type(screen.getByRole('searchbox'), 'missing')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await screen.findByRole('heading', { name: 'No matching records' })
     await user.click(screen.getByRole('button', { name: 'Clear search' }))
     await screen.findByRole('heading', { name: 'No patients yet' })
@@ -159,7 +157,6 @@ describe('patient and doctor workflows', () => {
     const { user } = mount('/patients')
     expect(screen.getByRole('heading', { name: 'Loading patients' })).toBeTruthy()
     await user.type(screen.getByRole('searchbox'), 'new search')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await screen.findByRole('heading', { name: 'No matching records' })
     await act(async () => resolveOld(list([record])))
     expect(screen.queryByRole('link', { name: 'Fictional Patient', exact: true })).toBeNull()

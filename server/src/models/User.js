@@ -10,9 +10,12 @@ const userSchema = new mongoose.Schema({
   jobTitle: { type: String, trim: true, default: '', maxlength: 100 },
   department: { type: String, trim: true, default: '', maxlength: 100 },
   workLocation: { type: String, trim: true, default: '', maxlength: 160 },
-  // This milestone has one permission level. Registration never accepts a role.
-  role: { type: String, enum: ['staff'], default: 'staff', immutable: true },
+  role: { type: String, enum: ['admin', 'staff', 'doctor'], default: 'staff' },
+  permissions: { type: [String], enum: ['assess', 'diagnostics', 'dispense'], default: [] },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', default: null },
+  active: { type: Boolean, default: true },
 }, { timestamps: true })
+userSchema.index({ doctorId: 1 }, { unique: true, partialFilterExpression: { doctorId: { $type: 'objectId' } } })
 
 export const User = mongoose.model('User', userSchema)
 
@@ -21,6 +24,7 @@ export function publicUser(user) {
     id: String(user._id), name: user.name, email: user.email,
     phone: user.phone || '', gender: user.gender || '', dateOfBirth: user.dateOfBirth || '',
     jobTitle: user.jobTitle || '', department: user.department || '', workLocation: user.workLocation || '',
-    role: user.role, createdAt: user.createdAt, updatedAt: user.updatedAt,
+    role: user.role, permissions: user.permissions || [], active: user.active !== false, doctorId: user.doctorId?.toString() || null,
+    version: user.__v, createdAt: user.createdAt, updatedAt: user.updatedAt,
   }
 }

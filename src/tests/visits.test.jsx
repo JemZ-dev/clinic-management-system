@@ -32,7 +32,7 @@ function installGet() {
 }
 function mount(path) {
   const logout = vi.fn()
-  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff' }, logout }}><AppLayout /></AuthContext>, children: [
+  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff', role: 'doctor', doctorId: doctor.id }, logout }}><AppLayout /></AuthContext>, children: [
     { path: '/visits', element: <VisitsPage /> }, { path: '/visits/new', element: <VisitFormPage /> }, { path: '/visits/:id', element: <VisitDetailsPage /> },
     { path: '/appointments/:id', element: <AppointmentDetailsPage /> }, { path: '/patients/:id', element: <RecordDetailPage config={patientsConfig} /> },
   ] }], { initialEntries: [path] })
@@ -82,13 +82,13 @@ describe('visit and treatment workflows', () => {
     expect(screen.getByRole('link', { name: 'View saved visit' }).getAttribute('href')).toBe(`/visits/${id}`)
     expect(screen.queryByRole('button', { name: 'Save visit' })).toBeNull()
   })
-  it('directs checked-in appointments to record a visit before completion', async () => {
+  it('directs checked-in appointments to assessment and consultation in the queue', async () => {
     installGet()
     mount(`/appointments/${aptId}`)
     await screen.findByRole('heading', { name: 'Appointment details' })
     expect(screen.queryByRole('button', { name: 'Mark completed' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Record visit' }).getAttribute('href')).toBe(`/visits/new?appointmentId=${aptId}`)
-    expect(screen.getByText('Save a visit record before completing this appointment.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open encounter queue' }).getAttribute('href')).toBe(`/queue?appointmentId=${aptId}&stage=all`)
+    expect(screen.queryByRole('button', { name: 'Mark cancelled' })).toBeNull()
   })
   it('preserves unsaved corrections through conflict reload failures and uses the refreshed version', async () => {
     const get = installGet()
@@ -119,7 +119,8 @@ describe('visit and treatment workflows', () => {
     const history = await screen.findByRole('region', { name: 'Patient visit history' })
     await within(history).findByRole('heading', { name: 'No visits recorded yet' })
     expect(get.mock.calls.some(([path]) => path.startsWith('/visits?') && path.includes(`patientId=${patient.id}`))).toBe(true)
-    expect(screen.getByRole('link', { name: 'Record visit without appointment' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'View encounter history, assessments, tests, and billing' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Register walk-in' })).toBeNull()
   })
   it('recovers from list failure and retains search and pagination in the URL', async () => {
     vi.spyOn(api, 'get').mockRejectedValueOnce(new Error('offline')).mockResolvedValue(paged([record], 1, 11))
@@ -131,8 +132,7 @@ describe('visit and treatment workflows', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }))
     expect(router.state.location.search).toContain('page=2')
     await user.type(screen.getByRole('searchbox'), 'Fictional')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
-    expect(router.state.location.search).toContain('q=Fictional')
+    await waitFor(() => expect(router.state.location.search).toContain('q=Fictional'))
     expect(router.state.location.search).toContain('page=1')
   })
   it('warns before signing out with unsaved visit notes and keeps them when cancelled', async () => {
@@ -145,7 +145,7 @@ describe('visit and treatment workflows', () => {
     expect(logout).not.toHaveBeenCalled()
     expect(screen.getByLabelText(/Consultation notes/).value).toBe('Unsaved fictional notes')
   })
-  it('saves a linked visit, returns to the appointment, and completes it with the updated version', async () => {
+  it('preserves legacy saved visit navigation without giving doctors reception actions', async () => {
     let booking = { ...appointment }
     const savedVisit = { ...record, appointmentId: aptId }
     vi.spyOn(api, 'get').mockImplementation((path) => Promise.resolve({ data: { record: path.startsWith('/appointments/') ? booking : savedVisit } }))
@@ -153,10 +153,7 @@ describe('visit and treatment workflows', () => {
       booking = { ...booking, version: 8, visitId: id, availableTransitions: ['completed', 'cancelled'] }
       return Promise.resolve({ data: { record: savedVisit } })
     })
-    const patch = vi.spyOn(api, 'patch').mockImplementation(() => {
-      booking = { ...booking, version: 9, status: 'completed', availableTransitions: [] }
-      return Promise.resolve({ data: { record: booking } })
-    })
+    const patch = vi.spyOn(api, 'patch')
     const { user } = mount(`/visits/new?appointmentId=${aptId}`)
     await screen.findByRole('heading', { name: 'Record visit' })
     await user.type(screen.getByLabelText(/Treatment provided/), 'Fictional treatment')
@@ -165,11 +162,7 @@ describe('visit and treatment workflows', () => {
     await user.click(screen.getByRole('link', { name: 'View appointment' }))
     await screen.findByRole('heading', { name: 'Appointment details' })
     expect(screen.getByRole('link', { name: 'View saved visit' })).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Mark completed' }))
-    await screen.findByRole('dialog', { name: 'Mark completed?' })
-    await user.click(screen.getByRole('button', { name: 'Confirm status change' }))
-    await screen.findByText('Appointment marked completed.')
-    expect(patch).toHaveBeenCalledWith(`/appointments/${aptId}/status`, { status: 'completed', version: 8, note: '' })
+    expect(patch).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Mark completed' })).toBeNull()
   })
   it('keeps unsaved correction text readable when the latest visit reaches the addendum limit', async () => {

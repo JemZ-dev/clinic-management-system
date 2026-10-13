@@ -1,3 +1,4 @@
+import { inviteFixture } from './fixtures.js'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
@@ -26,6 +27,7 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   await connectDatabase({ ...getConfig(), dbName })
   connected = true
   await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init()])
+  await inviteFixture('records@example.com', config.registrationCode, 'admin', [])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`

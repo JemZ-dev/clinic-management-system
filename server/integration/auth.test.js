@@ -1,3 +1,4 @@
+import { inviteFixture } from './fixtures.js'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
@@ -31,6 +32,7 @@ test('authentication and profile flow against an isolated Atlas database', async
   await connectDatabase({ ...getConfig(), dbName })
   connected = true
   await Promise.all([User.init(), Session.init()])
+  await inviteFixture('staff@example.com', config.registrationCode, 'staff', [])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api/auth`
@@ -61,7 +63,7 @@ test('authentication and profile flow against an isolated Atlas database', async
   const stored = await User.findOne({ email: registration.email }).select('+passwordHash')
   assert.notEqual(stored.passwordHash, registration.password)
 
-  assert.equal((await call('/register', { method: 'POST', body: registration })).status, 409)
+  assert.equal((await call('/register', { method: 'POST', body: registration })).status, 403)
   assert.equal((await call('/login', { method: 'POST', body: { email: registration.email, password: 'incorrect-passphrase' } })).status, 401)
   assert.equal((await call('/login', { method: 'POST', body: { email: 'unknown@example.com', password: 'incorrect-passphrase' } })).status, 401)
   assert.equal((await call('/profile', { method: 'PATCH', cookie, body: { name: 'Updated', phone: '555' }, origin: 'https://attacker.example' })).status, 403)

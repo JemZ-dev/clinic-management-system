@@ -5,7 +5,9 @@ import ProtectedRoute, { AuthReady } from './ProtectedRoute.jsx'
 import AppLayout from '../layouts/AppLayout.jsx'
 import AuthLayout from '../layouts/AuthLayout.jsx'
 import AuthPage from '../features/auth/pages/AuthPage.jsx'
-import WorkspacePage from '../features/dashboard/pages/WorkspacePage.jsx'
+import QueuePage, { ArrivalPage } from '../features/workflow/pages/QueuePage.jsx'
+import EncounterPage from '../features/workflow/pages/EncounterPage.jsx'
+import { AccountsPage, SchedulesPage, ServicesPage, DiagnosticsPage, BillingPage } from '../features/workflow/pages/ManagementPages.jsx'
 import ProfilePage from '../features/profile/pages/ProfilePage.jsx'
 import RecordListPage from '../components/records/RecordListPage.jsx'
 import RecordDetailPage from '../components/records/RecordDetailPage.jsx'
@@ -34,7 +36,15 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path="/register" element={<AuthPage key="register" registration />} />
     </Route>
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
-      <Route index element={<WorkspacePage />} />
+      <Route index element={<QueuePage embedded />} />
+      <Route path="queue" element={<QueuePage />} />
+      <Route path="queue/new" element={<ArrivalPage />} />
+      <Route path="queue/:id" element={<EncounterPage />} />
+      <Route path="accounts" element={<AccountsPage />} />
+      <Route path="schedules" element={<SchedulesPage />} />
+      <Route path="services" element={<ServicesPage />} />
+      <Route path="diagnostics" element={<DiagnosticsPage />} />
+      <Route path="billing" element={<BillingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="medicines">
         <Route index element={<MedicinesPage />} />

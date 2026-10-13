@@ -45,9 +45,6 @@ export function getAuthConfig(env = process.env) {
   if (!env.JWT_SECRET || env.JWT_SECRET.length < 32) {
     throw new ConfigurationError('Set JWT_SECRET to a random value of at least 32 characters in server/.env.')
   }
-  if (!env.REGISTRATION_CODE || env.REGISTRATION_CODE.length < 12) {
-    throw new ConfigurationError('Set REGISTRATION_CODE to a private value of at least 12 characters in server/.env.')
-  }
   const appOrigin = env.APP_ORIGIN || 'http://localhost:5173'
   let url
   try { url = new URL(appOrigin) } catch { throw new ConfigurationError('APP_ORIGIN must be a valid website origin.') }

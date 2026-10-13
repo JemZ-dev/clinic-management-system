@@ -1,3 +1,4 @@
+import { inviteFixture } from './fixtures.js'
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
@@ -29,6 +30,7 @@ test('inventory HTTP workflows keep stock and prescription dispensing atomic, bo
   })
   await connectDatabase({ ...getConfig(), dbName }); connected = true
   await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init(), Visit.init(), Medicine.init(), StockMovement.init()])
+  await inviteFixture('inventory@example.com', config.registrationCode, 'staff', ["dispense"])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`
@@ -70,6 +72,7 @@ test('inventory HTTP workflows keep stock and prescription dispensing atomic, bo
   assert.equal((await call(`/medicines/${medicine.id}`, 'PATCH', { ...input, version: 0 })).status, 409)
   const patient = await Patient.create({ name: 'Fictional Inventory Patient', dateOfBirth: '2000-01-01', createdBy: user.id, updatedBy: user.id })
   const doctor = await Doctor.create({ name: 'Fictional Inventory Doctor', specialty: 'Family medicine', createdBy: user.id, updatedBy: user.id })
+  await User.updateOne({ _id: user.id }, { $set: { role: 'doctor', doctorId: doctor.id } })
   const visitInput = { requestId: randomUUID(), patientId: patient.id, doctorId: doctor.id, date: clinicDate(), reason: 'Fictional visit', prescriptions: [{ medicineId: medicine.id, productKey: medicine.productKey, quantity: 4, instructions: 'Fictional clinician instructions only' }] }
   let visit = (await post('/visits', visitInput)).record
   assert.equal(visit.prescriptions[0].remainingQuantity, 4)

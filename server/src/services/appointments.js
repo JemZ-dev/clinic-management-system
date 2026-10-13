@@ -1,3 +1,6 @@
+import mongoose from 'mongoose'
+import { reserveSchedule } from './workflow.js'
+import { Encounter } from '../models/Encounter.js'
 import { Appointment } from '../models/Appointment.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
@@ -57,7 +60,15 @@ function slotError(error) {
 export async function createAppointment(data, userId, now = new Date()) {
   const details = await bookingDetails(data, now)
   try {
-    const appointment = await Appointment.create({ ...details, status: 'scheduled', createdBy: userId, updatedBy: userId, statusHistory: [{ status: 'scheduled', at: now, by: userId }] })
+    let appointment
+    await mongoose.connection.transaction(async (session) => {
+      await reserveSchedule(data.doctorId, data.date, data.time, session)
+      ;[appointment] = await Appointment.create([{ ...details, status: 'scheduled', createdBy: userId, updatedBy: userId, statusHistory: [{ status: 'scheduled', at: now, by: userId }] }], { session })
+      if (data.followUpEncounterId) {
+        const linked = await Encounter.updateOne({ _id: data.followUpEncounterId, stage: 'finished', patientId: data.patientId, doctorId: data.doctorId, followUpAppointmentId: null }, { $set: { followUpAppointmentId: appointment.id }, $inc: { __v: 1 } }, { session })
+        if (!linked.modifiedCount) throw new HttpError(409, 'This encounter already has a follow-up or its patient and doctor do not match.')
+      }
+    })
     return publicAppointment(await getAppointment(appointment.id))
   } catch (error) { slotError(error) }
 }
@@ -68,10 +79,13 @@ export async function updateAppointment(id, data, userId, now = new Date()) {
   if (existing.status !== 'scheduled') throw new HttpError(409, 'Only scheduled appointments can be rescheduled or edited.')
   const details = await bookingDetails(data, now)
   try {
-    const result = await Appointment.findOneAndUpdate({ _id: id, __v: data.version, status: 'scheduled' }, {
-      $set: { ...details, updatedBy: userId }, $inc: { __v: 1 },
-    }, { returnDocument: 'after', runValidators: true })
-    if (!result) throw new HttpError(409, 'This appointment changed. Open the latest appointment before saving again.')
+    await mongoose.connection.transaction(async (session) => {
+      await reserveSchedule(data.doctorId, data.date, data.time, session)
+      const result = await Appointment.findOneAndUpdate({ _id: id, __v: data.version, status: 'scheduled' }, {
+        $set: { ...details, updatedBy: userId }, $inc: { __v: 1 },
+      }, { session, returnDocument: 'after', runValidators: true })
+      if (!result) throw new HttpError(409, 'This appointment changed. Open the latest appointment before saving again.')
+    })
     return publicAppointment(await getAppointment(id))
   } catch (error) { slotError(error) }
 }
@@ -86,6 +100,7 @@ export function validateTransition(appointment, status, now = new Date()) {
 export async function changeAppointmentStatus(id, data, userId, now = new Date()) {
   const existing = await getAppointment(id)
   if (existing.__v !== data.version) throw new HttpError(409, 'This appointment changed. Reload it before updating the status.')
+  if (await Encounter.exists({ appointmentId: id })) throw new HttpError(409, 'Manage this patient from the encounter queue. Consultation completion and departures update the appointment automatically.')
   validateTransition(existing, data.status, now)
   const result = await Appointment.findOneAndUpdate({ _id: id, __v: data.version, status: existing.status }, {
     $set: { status: data.status, updatedBy: userId }, $inc: { __v: 1 },
