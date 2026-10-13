@@ -27,7 +27,7 @@ export default function UnsavedChanges({ dirty, busy, guard }) {
     if (signOut) signOut()
     setSignOut(null)
   }
-  return <Modal show={blocked || !!signOut} onHide={stay} centered aria-labelledby="unsaved-title">
+  return <Modal show={blocked || !!signOut} onHide={stay} centered aria-labelledby="unsaved-title" contentClassName="unsaved-changes-modal-content">
     <Modal.Header closeButton><Modal.Title id="unsaved-title">{busy ? 'Saving your changes' : 'Discard unsaved changes?'}</Modal.Title></Modal.Header>
     <Modal.Body>{busy ? 'Wait for the save to finish before leaving this page.' : 'Your changes have not been saved. Stay on this page to keep editing.'}</Modal.Body>
     <Modal.Footer><Button variant="outline-secondary" onClick={stay}>{busy ? 'Stay on page' : 'Keep editing'}</Button>{!busy && <Button variant="danger" onClick={leave}>Discard changes</Button>}</Modal.Footer>

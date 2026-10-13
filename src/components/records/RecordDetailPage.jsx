@@ -1,3 +1,4 @@
+import { Access } from '../ui/Access.jsx'
 import { useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 import Button from 'react-bootstrap/Button'
@@ -37,9 +38,9 @@ function RecordDetails({ config, record, reload }) {
   return <>
     <Link to={backTo} className="record-back"><ArrowLeft size={16} aria-hidden="true" />Back to {config.kind}</Link>
     <header className="page-heading record-heading"><div><h1>{record.name}</h1><p>{patient ? record.patientId : record.specialty} · <span className={`record-status ${archived ? 'archived' : ''}`}>{archived ? 'Archived' : 'Active'}</span></p></div><div className="record-actions">
-      {!archived && <Button as={Link} role="link" to={`/${config.kind}/${record.id}/edit`} state={{ backTo }}><Pencil size={16} aria-hidden="true" />Edit {config.singular}</Button>}
-      {!archived && <Button as={Link} role="link" variant="outline-secondary" to="/appointments/new" state={{ [patient ? 'patient' : 'doctor']: record }}><CalendarDays size={16} aria-hidden="true" />Book appointment</Button>}
-      <Button variant="outline-secondary" onClick={() => { setError(''); setConflict(false); setConfirm(true) }}>{archived ? <RotateCcw size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />}{archived ? 'Restore' : 'Archive'}</Button>
+      {!archived && <Access permission={patient ? 'reception' : 'accounts'}><Button as={Link} role="link" to={`/${config.kind}/${record.id}/edit`} state={{ backTo }}><Pencil size={16} aria-hidden="true" />Edit {config.singular}</Button></Access>}
+      {!archived && <Access permission="reception"><Button as={Link} role="link" variant="outline-secondary" to="/appointments/new" state={{ [patient ? 'patient' : 'doctor']: record }}><CalendarDays size={16} aria-hidden="true" />Book appointment</Button></Access>}
+      <Access permission={patient ? 'reception' : 'accounts'}><Button variant="outline-secondary" onClick={() => { setError(''); setConflict(false); setConfirm(true) }}>{archived ? <RotateCcw size={16} aria-hidden="true" /> : <Archive size={16} aria-hidden="true" />}{archived ? 'Restore' : 'Archive'}</Button></Access>
     </div></header>
     {(notice || location.state?.notice) && <Alert variant="success" role="status">{notice || location.state.notice}</Alert>}
     <p><Link to={`/appointments?${patient ? 'patientId' : 'doctorId'}=${record.id}&date=`} className="inline-action">View {config.singular} appointments</Link></p>
@@ -47,13 +48,14 @@ function RecordDetails({ config, record, reload }) {
     <div className="record-detail-layout">
       <section className="workspace-section" aria-labelledby="details-title"><h2 id="details-title">{patient ? 'Patient details' : 'Doctor details'}</h2><dl className="record-details">
         <Detail label="Full name" value={record.name} />{patient ? <Detail label="Birth date" value={record.dateOfBirth} /> : <Detail label="Specialty" value={record.specialty} />}
-        <Detail label="Phone number" value={record.phone} /><Detail label="Email address" value={record.email} />{patient && <Detail label="Address" value={record.address} />}
+        <Detail label="Phone number" value={record.phone} /><Detail label="Email address" value={record.email} />{patient && <><Detail label="Gender" value={record.gender?.replaceAll('_', ' ')} /><Detail label="Address" value={record.address} /></>}
       </dl></section>
       {patient && <section className="workspace-section" aria-labelledby="emergency-title"><h2 id="emergency-title">Emergency contact</h2><dl className="record-details"><Detail label="Contact name" value={record.emergencyContact?.name} /><Detail label="Relationship" value={record.emergencyContact?.relationship} /><Detail label="Phone number" value={record.emergencyContact?.phone} /></dl></section>}
+      {patient && <section className="workspace-section"><h2>Parent or guardian</h2><dl className="record-details"><Detail label="Guardian name" value={record.guardian?.name} /><Detail label="Relationship" value={record.guardian?.relationship} /><Detail label="Phone number" value={record.guardian?.phone} /></dl></section>}
     </div>
     {patient && <section className="workspace-section" aria-labelledby="history-title"><h2 id="history-title">Medical history</h2><p className="section-description">A blank field means the information has not been recorded.</p><dl className="medical-history-grid"><Detail label="Allergies" value={record.medicalHistory?.allergies} /><Detail label="Existing conditions" value={record.medicalHistory?.conditions} /><Detail label="Past surgeries" value={record.medicalHistory?.pastSurgeries} /><Detail label="Current medications" value={record.medicalHistory?.currentMedications} /></dl></section>}
-    <p className="record-meta">Last updated {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }).format(new Date(record.updatedAt))} (Manila time).</p>
-    {patient && <><div className="record-actions mb-3">{!archived && <Button as={Link} role="link" to="/visits/new" state={{ patient: record }} variant="outline-secondary">Record visit without appointment</Button>}</div><VisitList key={record.id} patientId={record.id} embedded /></>}
+    <p><Link to={`/queue?patientId=${record.id}&stage=all`}>View encounter history, assessments, tests, and billing</Link></p><p className="record-meta">Last updated {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' }).format(new Date(record.updatedAt))} (Manila time).</p>
+    {patient && <><div className="record-actions mb-3">{!archived && <Access permission="reception"><Button as={Link} role="link" to="/queue/new" state={{ patient: record }} variant="outline-secondary">Register walk-in</Button></Access>}</div><Access permission="clinical"><VisitList key={record.id} patientId={record.id} embedded /></Access></>}
     <Modal show={confirm} onHide={() => { if (!busy) setConfirm(false) }} centered backdrop={busy ? 'static' : true} keyboard={!busy} aria-labelledby="archive-title">
       <Modal.Header closeButton={!busy}><Modal.Title id="archive-title">{archived ? 'Restore' : 'Archive'} {config.singular}?</Modal.Title></Modal.Header>
       <Modal.Body><p className="mb-0">{archived ? `${record.name} will return to the active directory.` : `${record.name} will be removed from the active directory. Their record and history will be preserved, and you can restore them later.`}</p>{error && <Alert variant="danger" className="mt-3 mb-0" role="alert">{error}{conflict && <Button variant="link" onClick={() => { setConfirm(false); reload() }}>Reload record</Button>}</Alert>}</Modal.Body>

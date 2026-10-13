@@ -3,6 +3,7 @@ import test from 'node:test'
 import { hashPassword, verifyPassword } from '../src/utils/password.js'
 import { validate, registerSchema, profileSchema } from '../src/validators/auth.js'
 import { getAuthConfig } from '../src/config/env.js'
+import { profileFieldError, validateProfile } from '../../shared/profileValidation.js'
 
 test('passwords use salted hashes and reject wrong or corrupt credentials', async () => {
   const password = 'fictional long passphrase 🌱'
@@ -49,4 +50,30 @@ test('staff profile validates personal and work details without requiring option
   assert.throws(() => validate(profileSchema, { ...base, department: 'x'.repeat(101) }), { status: 400 })
   assert.throws(() => validate(profileSchema, { ...base, workLocation: 'x'.repeat(161) }), { status: 400 })
   assert.equal(validate(profileSchema, { ...base, dateOfBirth: '', gender: '', jobTitle: '', department: '', workLocation: '' }).dateOfBirth, '')
+})
+
+test('profile birthdays validate calendar dates and the clinic date boundary', () => {
+  const today = '2026-10-14'
+  for (const value of ['1900-01-01', '2000-02-29', today, '']) assert.equal(profileFieldError('dateOfBirth', value, today), '')
+  for (const value of ['1900-02-29', '2001-02-29', '2026-04-31', '2026-13-01', '2026-1-01', '1899-12-31', '2026-10-15', 'invalid']) {
+    assert.ok(profileFieldError('dateOfBirth', value, today), value)
+  }
+  assert.equal(profileFieldError('dateOfBirth', '2026-10-15', today), 'Date of birth cannot be in the future.')
+})
+
+test('profile identity and phone validation accepts real formats and rejects unusable values', () => {
+  const base = { name: 'José 李', phone: '' }
+  assert.deepEqual(validateProfile(base), {})
+  for (const phone of ['', '0917 123 4567', '+63 917 123 4567', '(555) 123-4567']) {
+    assert.equal(validate(profileSchema, { ...base, phone }).phone, phone)
+  }
+  for (const phone of ['---', '123', '1234567890123456', '123+4567890', 'call me', '+63+9171234567']) {
+    assert.throws(() => validate(profileSchema, { ...base, phone }), (error) => error.status === 400 && !!error.fields.phone)
+  }
+  for (const name of ['', '   ', 'A', '12345', '---']) {
+    assert.throws(() => validate(profileSchema, { ...base, name }), (error) => error.status === 400 && !!error.fields.name)
+  }
+  for (const [field, limit] of Object.entries({ name: 100, jobTitle: 100, department: 100, workLocation: 160 })) {
+    assert.throws(() => validate(profileSchema, { ...base, [field]: 'x'.repeat(limit + 1) }), (error) => error.status === 400 && !!error.fields[field])
+  }
 })

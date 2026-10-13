@@ -18,7 +18,7 @@ const detail = (value = record) => ({ data: { record: value } })
 
 function mount(path = '/patients/new', logout = vi.fn()) {
   const user = userEvent.setup()
-  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff' }, logout }}><AppLayout /></AuthContext>, children: [
+  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff', role: 'admin' }, logout }}><AppLayout /></AuthContext>, children: [
     { path: '/', element: <h1>Workspace</h1> },
     { path: '/patients', element: <RecordListPage config={patientsConfig} /> },
     { path: '/patients/new', element: <RecordFormPage config={patientsConfig} /> },
@@ -117,7 +117,6 @@ describe('patient and doctor workflows', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }))
     await waitFor(() => expect(router.state.location.search).toContain('page=2'))
     await user.type(screen.getByRole('searchbox'), 'Fictional')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await waitFor(() => expect(router.state.location.search).toContain('q=Fictional'))
     expect(router.state.location.search).toContain('page=1')
     await user.selectOptions(screen.getByLabelText('Records'), 'archived')
@@ -125,12 +124,27 @@ describe('patient and doctor workflows', () => {
     expect(get.mock.calls.at(-1)[0]).toContain('status=archived')
   })
 
+  it('clears an applied search from a later page while keeping the record filter and returning focus', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue(list([record], 2, 21))
+    const { user, router } = mount('/patients?q=Fictional&status=archived&page=2')
+    await screen.findByRole('link', { name: 'Fictional Patient', exact: true })
+    await user.click(screen.getByRole('button', { name: 'Clear search input' }))
+    await waitFor(() => {
+      const params = new URLSearchParams(router.state.location.search)
+      expect(params.has('q')).toBe(false)
+      expect(params.get('page')).toBe('1')
+      expect(params.get('status')).toBe('archived')
+      expect(screen.getByRole('searchbox').value).toBe('')
+      expect(document.activeElement).toBe(screen.getByRole('searchbox'))
+    })
+    expect(get.mock.calls.at(-1)[0]).toContain('q=&status=archived')
+  })
+
   it('shows an honest empty state and a separate no-results state', async () => {
     vi.spyOn(api, 'get').mockResolvedValue(list())
     const { user } = mount('/patients')
     await screen.findByRole('heading', { name: 'No patients yet' })
     await user.type(screen.getByRole('searchbox'), 'missing')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await screen.findByRole('heading', { name: 'No matching records' })
     await user.click(screen.getByRole('button', { name: 'Clear search' }))
     await screen.findByRole('heading', { name: 'No patients yet' })
@@ -143,7 +157,6 @@ describe('patient and doctor workflows', () => {
     const { user } = mount('/patients')
     expect(screen.getByRole('heading', { name: 'Loading patients' })).toBeTruthy()
     await user.type(screen.getByRole('searchbox'), 'new search')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
     await screen.findByRole('heading', { name: 'No matching records' })
     await act(async () => resolveOld(list([record])))
     expect(screen.queryByRole('link', { name: 'Fictional Patient', exact: true })).toBeNull()

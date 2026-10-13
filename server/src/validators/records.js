@@ -18,6 +18,8 @@ export function validBirthDate(value) {
 export const patientSchema = z.object({
   name,
   dateOfBirth: z.string().refine(validBirthDate, 'Enter a real birth date from 1900 through today.'),
+  gender: z.enum(['', 'female', 'male', 'non_binary', 'other', 'prefer_not_to_say']).default(''),
+  guardian: z.object({ name: text(100).default(''), relationship: text(80).default(''), phone: phone.default('') }).strict().default({ name: '', relationship: '', phone: '' }),
   phone: phone.default(''), email: email.default(''), address: text(500).default(''),
   emergencyContact: z.object({ name: text(100).default(''), relationship: text(80).default(''), phone: phone.default('') }).strict().default({ name: '', relationship: '', phone: '' }),
   medicalHistory: z.object({

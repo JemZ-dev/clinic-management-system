@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { createHash } from 'node:crypto'
+import { Encounter } from '../models/Encounter.js'
 import { Visit } from '../models/Visit.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
@@ -36,15 +37,16 @@ function retryResult(existing, digest, userId) {
   return publicVisit(existing)
 }
 
-export async function createVisit(data, user) {
+export async function createVisit(data, user, outerSession = null) {
   const { requestId, appointmentVersion, appointmentId, prescriptions, ...fields } = data
   // Omit an empty catalog list from the digest so earlier text-only save retries remain valid.
   const digest = createHash('sha256').update(JSON.stringify({ ...fields, ...(prescriptions.length ? { prescriptions } : {}), appointmentId: appointmentId || null })).digest('hex')
-  const existing = await Visit.findOne({ requestId })
+  if (!outerSession && appointmentId && await Encounter.exists({ appointmentId })) throw new HttpError(409, 'Save and finalize the consultation from its encounter.')
+  const existing = await Visit.findOne({ requestId }).session(outerSession)
   if (existing) return retryResult(existing, digest, user.id)
   let saved
   try {
-    await mongoose.connection.transaction(async (session) => {
+    const write = async (session) => {
       const patient = await Patient.findById(data.patientId).session(session)
       const doctor = await Doctor.findById(data.doctorId).session(session)
       const errors = {}
@@ -73,7 +75,9 @@ export async function createVisit(data, user) {
         author: { id: user.id, name: user.name }, createdBy: user.id, requestId, requestDigest: digest,
       }], { session })
       saved = records[0]
-    })
+    }
+    if (outerSession) await write(outerSession)
+    else await mongoose.connection.transaction(write)
     return publicVisit(saved)
   } catch (error) {
     if (error.status === 409) {

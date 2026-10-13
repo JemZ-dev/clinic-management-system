@@ -1,0 +1,51 @@
+import { Link, useParams, useSearchParams } from 'react-router'
+import Table from 'react-bootstrap/Table'
+import { useAuth } from '../../../hooks/useAuth.js'
+import { can, clinicalAccess } from '../../../../shared/permissions.js'
+import useApiResource from '../../../hooks/useApiResource.js'
+import { api } from '../../../lib/api.js'
+import PrescriptionEditor from '../../visits/components/PrescriptionEditor.jsx'
+import { WorkflowResource, WorkflowForm, Field, ActionButton } from '../components/WorkflowUI.jsx'
+import { STAGES, dateTime } from '../workflow.js'
+import OrdersPanel from '../components/OrdersPanel.jsx'
+import InvoicePanel from '../components/InvoicePanel.jsx'
+
+function Assessment({ record, reload }) {
+  const closed = ['finished', 'left'].includes(record.stage)
+  return <><h2>Initial assessment</h2><p className="section-description">Record measurements taken during this attendance. Previous readings remain in the history.</p>
+    {record.assessments?.length > 0 && <Table responsive><thead><tr><th>Measured</th><th>Weight / height</th><th>Blood pressure</th><th>Additional readings</th><th>Recorded by</th></tr></thead><tbody>{record.assessments.map((entry, index) => <tr key={index}><td>{dateTime(entry.measuredAt)}</td><td>{entry.weight ?? '—'} kg / {entry.height ?? '—'} cm</td><td>{entry.systolic ?? '—'}/{entry.diastolic ?? '—'} mmHg</td><td>{entry.temperature != null && `${entry.temperature} °C · `}{entry.pulse != null && `${entry.pulse} bpm · `}{entry.oxygen != null && `${entry.oxygen}% SpO₂`}<span className="record-meta">{entry.notMeasuredReason}</span></td><td>{entry.actor.name}</td></tr>)}</tbody></Table>}
+    {!closed && <WorkflowForm initial={{ weight: '', height: '', systolic: '', diastolic: '', temperature: '', pulse: '', oxygen: '', notMeasuredReason: '' }} submitLabel="Save assessment" onSave={async (values) => { const measurements = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, key === 'notMeasuredReason' ? value : value === '' ? null : Number(value)])); await api.post(`/encounters/${record.id}/assessment`, { ...measurements, measuredAt: new Date().toISOString(), version: record.version }); reload() }}>{({ values, change, fields }) => <><div className="record-form-grid">{[['weight', 'Weight (kg)', 0.1, 650], ['height', 'Height (cm)', 20, 300], ['systolic', 'Systolic BP (mmHg)', 20, 350], ['diastolic', 'Diastolic BP (mmHg)', 10, 250], ['temperature', 'Temperature (°C)', 25, 45], ['pulse', 'Pulse (beats/min)', 10, 350], ['oxygen', 'Oxygen saturation (%)', 1, 100]].map(([key, label, min, max]) => <Field key={key} label={label} type="number" step="any" min={min} max={max} value={values[key]} error={fields[key]} onChange={(value) => change(key, value)} />)}</div><Field label="Reason for measurements not taken" value={values.notMeasuredReason} multiline maxLength={500} error={fields.notMeasuredReason} onChange={(value) => change('notMeasuredReason', value)} help="Required if weight, height, or either blood pressure reading is unavailable. Never enter a placeholder reading." /></>}</WorkflowForm>}
+  </>
+}
+function Consultation({ record, reload }) {
+  if (record.visitId) return <><h2>Consultation finalized</h2><p>The original consultation is preserved. Corrections are added as dated notes.</p><Link to={`/visits/${record.visitId}`}>Open consultation and prescriptions</Link></>
+  if (record.stage !== 'in_consultation') return <><h2>Consultation</h2><p>Complete the initial assessment and start the consultation from the overview.</p></>
+  const initial = { reason: record.reason, diagnosis: '', notes: '', treatment: '', prescribedMedicines: '', followUp: '', prescriptions: [], ...record.draft, followUpDate: record.followUpDate || '' }
+  return <><h2>Consultation draft</h2><p className="section-description">Save progress before finalizing. Finalized notes can only be supplemented with attributed corrections.</p><WorkflowForm initial={initial} submitLabel="Save draft" onSave={async (values) => { await api.put(`/encounters/${record.id}/draft`, { ...values, prescriptions: values.prescriptions.map(({ medicineId, productKey, quantity, instructions }) => ({ medicineId, productKey, quantity: Number(quantity), instructions })), version: record.version }); reload() }}>{({ values, change, fields, dirty, busy }) => <><div className="record-form-grid">{[['reason', 'Reason for visit', 500], ['diagnosis', 'Recorded diagnosis', 2000], ['notes', 'Findings and examination', 4000], ['treatment', 'Treatment provided', 4000], ['prescribedMedicines', 'Additional prescription instructions', 2000], ['followUp', 'Follow-up instructions', 2000]].map(([key, label, max]) => <Field key={key} label={label} multiline maxLength={max} required={key === 'reason'} value={values[key]} error={fields[key]} onChange={(value) => change(key, value)} />)}<Field label="Requested follow-up date" type="date" value={values.followUpDate} onChange={(value) => change('followUpDate', value)} /></div><PrescriptionEditor value={values.prescriptions} errors={fields} onChange={(value) => change('prescriptions', value)} /><p className="record-meta mt-3">Save edits before finalizing the consultation.</p><ActionButton disabled={!record.hasDraft || dirty || busy} confirm="Finalize the saved consultation? Original notes will be preserved and the patient will leave the active queue." onAction={async () => { await api.post(`/encounters/${record.id}/finalize`, { version: record.version }); reload() }}>Finalize saved consultation</ActionButton></>}</WorkflowForm></>
+}
+function EncounterDetail({ record, reload }) {
+  const { user } = useAuth(), [params] = useSearchParams()
+  const tab = params.get('tab') || 'overview'
+  const tabs = [['overview', 'Overview'], ...(can(user, 'assess') ? [['assessment', 'Assessment']] : []), ...(can(user, 'clinical') ? [['consultation', 'Consultation']] : []), ...(can(user, 'clinical') || can(user, 'diagnostics') || can(user, 'reception') ? [['tests', 'Tests & results']] : []), ...(can(user, 'billing') ? [['billing', 'Billing']] : [])]
+  const closed = ['finished', 'left'].includes(record.stage)
+  return <><Link className="record-back" to="/queue">Back to queue</Link><header className="page-heading"><div><h1>{record.patientName}</h1><p>{record.patientNumber} · {record.doctorName || 'External diagnostic request'} · {STAGES[record.stage]}</p></div><Link to={`/patients/${record.patientId}`}>Patient profile</Link></header>
+    <nav className="workflow-tabs" aria-label="Encounter sections">{tabs.map(([key, label]) => <Link key={key} aria-current={tab === key ? 'page' : undefined} to={`?tab=${key}`}>{label}</Link>)}</nav>
+    <section className="workspace-section">
+      {tab === 'overview' && <><h2>Encounter overview</h2><dl className="record-details"><div><dt>Arrival</dt><dd>{dateTime(record.arrivedAt)}</dd></div><div><dt>Attendance</dt><dd>{record.kind.replaceAll('_', ' ')}</dd></div><div><dt>Reason</dt><dd>{record.reason}</dd></div><div><dt>Assessment</dt><dd>{record.assessmentCount ? `${record.assessmentCount} recorded` : record.kind === 'external_test' ? 'Not part of this attendance' : 'Awaiting measurements'}</dd></div>{record.externalClinician && <div><dt>Referring clinician</dt><dd>{record.externalClinician}</dd></div>}</dl>
+        {record.stage === 'waiting' && can(user, 'clinical') && <ActionButton variant="primary" onAction={async () => { await api.post(`/encounters/${record.id}/action`, { version: record.version, action: 'start', note: '' }); reload() }}>Start consultation</ActionButton>}
+        {record.visitId && (can(user, 'clinical') || can(user, 'dispense')) && <p><Link to={`/visits/${record.visitId}`}>Open saved consultation / dispensing</Link></p>}
+        {record.followUpDate && !record.followUpAppointmentId && record.stage === 'finished' && can(user, 'reception') && <p>Follow-up requested: {record.followUpDate}. <Link to="/appointments/new" state={{ patient: { id: record.patientId, name: record.patientName, patientId: record.patientNumber }, doctor: { id: record.doctorId, name: record.doctorName }, followUpDate: record.followUpDate, encounterId: record.id }}>Book follow-up</Link></p>}
+        {record.followUpAppointmentId && <p><Link to={`/appointments/${record.followUpAppointmentId}`}>View linked follow-up appointment</Link></p>}
+        {!closed && (can(user, 'reception') || can(user, 'assess')) && <details className="workflow-details"><summary>Queue actions</summary><WorkflowForm initial={{ action: can(user, 'reception') ? 'left' : 'priority', note: '' }} submitLabel="Apply queue change" onSave={async (values) => { await api.post(`/encounters/${record.id}/action`, { ...values, version: record.version }); reload() }}>{({ values, change }) => <><Field label="Action" value={values.action} onChange={(value) => change('action', value)} options={[...(can(user, 'reception') ? [{ value: 'left', label: 'Patient left before completion' }] : []), ...(can(user, 'assess') ? [{ value: 'priority', label: 'Prioritize patient' }, { value: 'normal', label: 'Restore normal priority' }] : [])]} /><Field label="Reason" required multiline maxLength={500} value={values.note} onChange={(value) => change('note', value)} /></>}</WorkflowForm></details>}
+        <h3 className="mt-4">Activity</h3><ol className="appointment-history">{record.history.map((entry, index) => <li key={index}><div><strong>{entry.action.replaceAll('_', ' ')}</strong><span>{entry.actor.name} · {dateTime(entry.at)}</span></div>{entry.note && <p>{entry.note}</p>}</li>)}</ol>
+      </>}
+      {tab === 'assessment' && clinicalAccess(user) && <Assessment record={record} reload={reload} />}
+      {tab === 'consultation' && can(user, 'clinical') && <Consultation record={record} reload={reload} />}
+      {tab === 'tests' && tabs.some(([key]) => key === 'tests') && <OrdersPanel encounter={record} />}
+      {tab === 'billing' && can(user, 'billing') && <InvoicePanel encounter={record} />}
+    </section></>
+}
+export default function EncounterPage() {
+  const { id } = useParams(), resource = useApiResource(`/encounters/${id}`)
+  return <WorkflowResource resource={resource}>{({ record }) => <EncounterDetail key={`${id}-${record.version}`} record={record} reload={resource.reload} />}</WorkflowResource>
+}

@@ -1,3 +1,4 @@
+import AvailableSlots from '../../workflow/components/AvailableSlots.jsx'
 import { useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import Form from 'react-bootstrap/Form'
@@ -16,7 +17,7 @@ import RecordPicker from '../components/RecordPicker.jsx'
 function AppointmentForm({ record }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [initial] = useState(() => record ? { patientId: record.patientId || '', doctorId: record.doctorId || '', ...appointmentFields(record.startsAt), reason: record.reason } : { patientId: location.state?.patient?.id || '', doctorId: location.state?.doctor?.id || '', date: clinicToday(), time: '', reason: '' })
+  const [initial] = useState(() => record ? { patientId: record.patientId || '', doctorId: record.doctorId || '', ...appointmentFields(record.startsAt), reason: record.reason } : { patientId: location.state?.patient?.id || '', doctorId: location.state?.doctor?.id || '', date: location.state?.followUpDate || clinicToday(), time: '', reason: '' })
   const [values, setValues] = useState(initial)
   const [patient, setPatient] = useState(record?.patient || location.state?.patient || null)
   const [doctor, setDoctor] = useState(record?.doctor || location.state?.doctor || null)
@@ -32,7 +33,7 @@ function AppointmentForm({ record }) {
   async function save(event) {
     event.preventDefault(); setBusy(true); setError(''); setErrors({}); setConflict(false)
     try {
-      const response = record ? await api.patch(`/appointments/${record.id}`, { ...values, version: record.version }) : await api.post('/appointments', values)
+      const response = record ? await api.patch(`/appointments/${record.id}`, { ...values, version: record.version }) : await api.post('/appointments', { ...values, ...(location.state?.encounterId ? { followUpEncounterId: location.state.encounterId } : {}) })
       guard.current = false
       navigate(`/appointments/${response.data.record.id}`, { replace: true, state: { backTo, notice: record ? 'Appointment updated successfully.' : 'Appointment booked successfully.' } })
     } catch (failure) {
@@ -51,7 +52,7 @@ function AppointmentForm({ record }) {
           <RecordPicker kind="patients" label="Patient" value={values.patientId} selected={patient} error={errors.patientId} onChange={(value, selected) => { change('patientId', value); setPatient(selected) }} />
           <RecordPicker kind="doctors" label="Doctor" value={values.doctorId} selected={doctor} error={errors.doctorId} onChange={(value, selected) => { change('doctorId', value); setDoctor(selected) }} />
         </div></section>
-        <section className="workspace-section" aria-labelledby="appointment-time-title"><h2 id="appointment-time-title">Schedule</h2><div className="record-form-grid">
+        <section className="workspace-section" aria-labelledby="appointment-time-title"><h2 id="appointment-time-title">Schedule</h2><AvailableSlots doctorId={values.doctorId} date={values.date} onSelect={(time) => change('time', time)} /><div className="record-form-grid">
           <RecordField name="date" label="Date" value={values.date} onChange={change} errors={errors} required type="date" min={clinicToday()} />
           <RecordField name="time" label="Start time" value={values.time} onChange={change} errors={errors} required type="time" step={1800} help="Choose a time on the hour or half-hour, such as 09:00 or 09:30." />
           <RecordField name="reason" label="Reason for appointment" value={values.reason} onChange={change} errors={errors} multiline maxLength={500} help="Add a short reason for the visit, if known." />

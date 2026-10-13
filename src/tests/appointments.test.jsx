@@ -26,7 +26,7 @@ function installGet() {
   })
 }
 function mount(path) {
-  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff' }, logout: vi.fn() }}><AppLayout /></AuthContext>, children: [
+  const router = createMemoryRouter([{ element: <AuthContext value={{ user: { name: 'Fictional Staff', role: 'staff' }, logout: vi.fn() }}><AppLayout /></AuthContext>, children: [
     { path: '/', element: <ClinicOverview /> }, { path: '/appointments', element: <AppointmentsPage /> },
     { path: '/appointments/new', element: <AppointmentFormPage /> }, { path: '/appointments/:id', element: <AppointmentDetailsPage /> },
     { path: '/appointments/:id/edit', element: <AppointmentFormPage editing /> },

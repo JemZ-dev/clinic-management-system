@@ -1,3 +1,4 @@
+import { inviteFixture } from './fixtures.js'
 import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
@@ -27,12 +28,13 @@ test('visit HTTP workflows preserve history, link atomically, and reject conflic
   })
   await connectDatabase({ ...getConfig(), dbName }); connected = true
   await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init(), Visit.init()])
+  await inviteFixture('visits@example.com', config.registrationCode, 'staff', [])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`
-  let cookie
+  let cookie, receptionCookie
   async function call(path, method = 'GET', body, authenticated = true) {
-    return fetch(`${base}${path}`, { method, headers: { 'Content-Type': 'application/json', Origin: config.appOrigin, 'X-Clinic-Request': '1', ...(authenticated && cookie ? { Cookie: cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
+    return fetch(`${base}${path}`, { method, headers: { 'Content-Type': 'application/json', Origin: config.appOrigin, 'X-Clinic-Request': '1', ...(authenticated && cookie ? { Cookie: method === 'PATCH' && path.startsWith('/appointments/') ? receptionCookie : cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
   }
   assert.equal((await call('/visits')).status, 401)
   const registration = await call('/auth/register', 'POST', { name: 'Fictional Visit Staff', email: 'visits@example.com', password: 'fictional-visits-passphrase', registrationCode: config.registrationCode })
@@ -42,6 +44,11 @@ test('visit HTTP workflows preserve history, link atomically, and reject conflic
   const patient = await Patient.create({ name: 'Fictional [Patient]', dateOfBirth: '2000-01-01', createdBy: user.id, updatedBy: user.id })
   const otherPatient = await Patient.create({ name: 'Other Fictional Patient', dateOfBirth: '2000-01-01', createdBy: user.id, updatedBy: user.id })
   const doctor = await Doctor.create({ name: 'Fictional Doctor', specialty: 'Family medicine', createdBy: user.id, updatedBy: user.id })
+  await User.updateOne({ _id: user.id }, { $set: { role: 'doctor', doctorId: doctor.id } })
+  await inviteFixture('reception@example.com', 'reception-integration-invitation')
+  const receptionist = await call('/auth/register', 'POST', { name: 'Fictional Reception', email: 'reception@example.com', password: 'fictional-reception-passphrase', registrationCode: 'reception-integration-invitation' })
+  assert.equal(receptionist.status, 201)
+  receptionCookie = receptionist.headers.get('set-cookie').split(';')[0]
   const today = clinicDate()
   const data = { requestId: randomUUID(), patientId: patient.id, doctorId: doctor.id, date: today, reason: 'Fictional reason', diagnosis: 'Fictional finding', notes: 'Fictional notes', treatment: 'Fictional treatment', prescribedMedicines: 'Fictional prescription', followUp: 'Fictional follow-up' }
   assert.equal((await call('/visits', 'POST', data, false)).status, 401)

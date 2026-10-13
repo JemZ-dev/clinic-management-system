@@ -1,10 +1,12 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { authenticate } from '../middleware/authenticate.js'
 import { requireStaff } from '../middleware/requireStaff.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
 import { validate } from '../validators/auth.js'
 import { patientSchema, doctorSchema, patientUpdateSchema, doctorUpdateSchema, recordIdSchema, listSchema, versionSchema } from '../validators/records.js'
+import { assignedPatients } from '../middleware/permissions.js'
 import { HttpError } from '../utils/errors.js'
 
 function publicRecord(document) {
@@ -38,6 +40,8 @@ export function recordRoutes(authService, kind) {
     const { q, status, page, limit } = validate(listSchema, request.query)
     const filter = status === 'all' ? {} : { archivedAt: status === 'active' ? null : { $ne: null } }
     if (q) filter.$or = searchFields.map((field) => ({ [field]: { $regex: escapeSearch(q), $options: 'i' } }))
+    const assigned = patient ? await assignedPatients(request.auth.user) : null
+    if (assigned) filter._id = { $in: assigned }
     const total = await Model.countDocuments(filter)
     const pages = Math.max(1, Math.ceil(total / limit))
     const currentPage = Math.min(page, pages)
@@ -45,11 +49,16 @@ export function recordRoutes(authService, kind) {
     response.json({ records: records.map(publicRecord), pagination: { page: currentPage, limit, total, pages } })
   })
   router.post('/', async (request, response) => {
-    const data = validate(createSchema, request.body)
+    const { duplicateAcknowledged, ...data } = validate(patient ? createSchema.extend({ duplicateAcknowledged: z.boolean().default(false) }) : createSchema, request.body)
+    if (patient && !duplicateAcknowledged && await Patient.exists({ name: { $regex: '^' + escapeSearch(data.name) + '$', $options: 'i' }, dateOfBirth: data.dateOfBirth })) throw new HttpError(409, 'A patient with the same name and birth date already exists. Review existing records before creating a separate patient.', { duplicate: 'Confirm this is a different person before proceeding.' })
     const record = await Model.create({ ...data, createdBy: request.auth.user.id, updatedBy: request.auth.user.id })
     response.status(201).json({ record: publicRecord(record) })
   })
-  router.get('/:id', async (request, response) => response.json({ record: publicRecord(await getRecord(request.params.id)) }))
+  router.get('/:id', async (request, response) => {
+    const assigned = patient ? await assignedPatients(request.auth.user) : null
+    if (assigned && !assigned.includes(request.params.id)) throw new HttpError(403, 'This patient is not assigned to you.')
+    response.json({ record: publicRecord(await getRecord(request.params.id)) })
+  })
 
   async function mutate(request, mode) {
     validate(recordIdSchema, request.params.id)

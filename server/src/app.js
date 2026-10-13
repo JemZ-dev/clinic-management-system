@@ -10,12 +10,15 @@ import { visitRoutes } from './routes/visits.js'
 import { medicineRoutes } from './routes/medicines.js'
 import { inventoryRoutes } from './routes/inventory.js'
 import { HttpError } from './utils/errors.js'
+import { operationRoutes } from './routes/operations.js'
+import { encounterRoutes, billingRoutes } from './routes/encounters.js'
 
 export function createApp({ pingDatabase, authService, config }) {
   const app = express()
   app.disable('x-powered-by')
   app.use(helmet())
   app.use(cookieParser())
+  app.use('/api/operations/orders/:id/reports', express.json({ limit: '7mb' }))
   app.use(express.json({ limit: '100kb' }))
   app.use('/api', (_request, response, next) => {
     response.set('Cache-Control', 'no-store')
@@ -24,6 +27,9 @@ export function createApp({ pingDatabase, authService, config }) {
   if (authService) {
     app.use('/api', browserSecurity(config.appOrigin, config.appOrigins))
     app.use('/api/auth', authRoutes(authService, config))
+    app.use('/api/operations', operationRoutes(authService))
+    app.use('/api/encounters', encounterRoutes(authService))
+    app.use('/api/billing', billingRoutes(authService))
     app.use('/api/patients', recordRoutes(authService, 'patients'))
     app.use('/api/doctors', recordRoutes(authService, 'doctors'))
     app.use('/api/appointments', appointmentRoutes(authService))
@@ -51,6 +57,7 @@ export function createApp({ pingDatabase, authService, config }) {
     if (error instanceof HttpError) {
       return response.status(error.status).json({ message: error.message, ...(error.fields ? { fields: error.fields } : {}) })
     }
+    if (error.name === 'VersionError' || error.code === 11000) return response.status(409).json({ message: 'This record changed or already exists. Reload before trying again.' })
     if (error.type === 'entity.parse.failed') {
       return response.status(400).json({ message: 'Request body must be valid JSON.' })
     }
