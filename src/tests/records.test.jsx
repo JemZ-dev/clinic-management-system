@@ -25,6 +25,7 @@ function mount(path = '/patients/new', logout = vi.fn()) {
     { path: '/patients/:id/edit', element: <RecordFormPage config={patientsConfig} editing /> },
     { path: '/patients/:id', element: <RecordDetailPage config={patientsConfig} /> },
     { path: '/doctors', element: <RecordListPage config={doctorsConfig} /> },
+    { path: '/doctors/:id', element: <RecordDetailPage config={doctorsConfig} /> },
   ] }], { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return { user, router }
@@ -33,6 +34,27 @@ function mount(path = '/patients/new', logout = vi.fn()) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('patient and doctor workflows', () => {
+  it('shows the doctor’s linked personal, contact and work details alongside their directory details', async () => {
+    const doctor = { ...doctorsConfig.defaults, id, name: 'Fictional Directory Doctor', specialty: 'Family medicine', archivedAt: null, version: 1, updatedAt: record.updatedAt, profile: { name: 'Fictional Profile Doctor', gender: 'male', dateOfBirth: '1980-05-12', phone: '5550123', email: 'profile-doctor@example.com', jobTitle: 'Consultant', department: 'Cardiology', workLocation: 'Main clinic', active: false } }
+    vi.spyOn(api, 'get').mockResolvedValue(detail(doctor))
+    mount(`/doctors/${id}`)
+    await screen.findByRole('heading', { name: doctor.name, level: 1 })
+    const profile = within(screen.getByRole('region', { name: 'Personal and work details' }))
+    for (const value of ['Fictional Profile Doctor', 'Male', '1980-05-12', '5550123', 'profile-doctor@example.com', 'Consultant', 'Cardiology', 'Main clinic', 'Inactive']) expect(profile.getByText(value)).toBeTruthy()
+    expect(screen.getByText('Family medicine')).toBeTruthy()
+  })
+
+  it('shows missing doctor profile details honestly without making a separate request for another employee', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue(detail({ ...doctorsConfig.defaults, id, name: 'Fictional Directory Doctor', specialty: 'Family medicine', archivedAt: null, version: 1, updatedAt: record.updatedAt, profile: null }))
+    mount(`/doctors/${id}`)
+    await screen.findByRole('heading', { name: 'Fictional Directory Doctor', level: 1 })
+    const profile = within(screen.getByRole('region', { name: 'Personal and work details' }))
+    expect(profile.getByText('No staff profile is linked to this doctor yet.')).toBeTruthy()
+    expect(profile.getByText('Gender').parentElement.textContent).toContain('Not recorded')
+    expect(profile.getByText('Birth date').parentElement.textContent).toContain('Not recorded')
+    expect(get).toHaveBeenCalledWith(`/doctors/${id}`, expect.anything())
+  })
+
   it('keeps unsaved values when navigation or sign-out is cancelled', async () => {
     vi.spyOn(api, 'get').mockResolvedValue(list())
     const logout = vi.fn()

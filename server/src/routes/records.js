@@ -6,6 +6,7 @@ import { requireStaff } from '../middleware/requireStaff.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
 import { Appointment } from '../models/Appointment.js'
+import { User } from '../models/User.js'
 import { validate } from '../validators/auth.js'
 import { patientSchema, doctorSchema, patientUpdateSchema, doctorUpdateSchema, recordIdSchema, listSchema, versionSchema } from '../validators/records.js'
 import { assignedPatients } from '../middleware/permissions.js'
@@ -38,6 +39,15 @@ export function recordRoutes(authService, kind) {
     return record
   }
 
+  async function publicDetails(document) {
+    const result = publicRecord(document)
+    if (!patient) {
+      result.profile = await User.findOne({ doctorId: document._id })
+        .select('name email phone gender dateOfBirth jobTitle department workLocation active updatedAt -_id').lean()
+    }
+    return result
+  }
+
   router.get('/', async (request, response) => {
     const { q, status, page, limit } = validate(listSchema, request.query)
     const filter = status === 'all' ? {} : { archivedAt: status === 'active' ? null : { $ne: null } }
@@ -54,12 +64,12 @@ export function recordRoutes(authService, kind) {
     const { duplicateAcknowledged, ...data } = validate(patient ? createSchema.extend({ duplicateAcknowledged: z.boolean().default(false) }) : createSchema, request.body)
     if (patient && !duplicateAcknowledged && await Patient.exists({ name: { $regex: '^' + escapeSearch(data.name) + '$', $options: 'i' }, dateOfBirth: data.dateOfBirth })) throw new HttpError(409, 'A patient with the same name and birth date already exists. Review existing records before creating a separate patient.', { duplicate: 'Confirm this is a different person before proceeding.' })
     const record = await Model.create({ ...data, createdBy: request.auth.user.id, updatedBy: request.auth.user.id })
-    response.status(201).json({ record: publicRecord(record) })
+    response.status(201).json({ record: await publicDetails(record) })
   })
   router.get('/:id', async (request, response) => {
     const assigned = patient ? await assignedPatients(request.auth.user) : null
     if (assigned && !assigned.includes(request.params.id)) throw new HttpError(403, 'This patient is not assigned to you.')
-    response.json({ record: publicRecord(await getRecord(request.params.id)) })
+    response.json({ record: await publicDetails(await getRecord(request.params.id)) })
   })
 
   async function mutate(request, mode) {
@@ -74,7 +84,7 @@ export function recordRoutes(authService, kind) {
       const record = await Model.findOneAndUpdate({
         _id: request.params.id, __v: version, archivedAt: active ? null : { $ne: null },
       }, { $set: { ...changes, updatedBy: request.auth.user.id }, $inc: { __v: 1 } }, { session, returnDocument: 'after', runValidators: true })
-      if (record) return publicRecord(record)
+      if (record) return publicDetails(record)
       const existing = await getRecord(request.params.id)
       if (mode === 'edit' && existing.archivedAt) throw new HttpError(409, 'Restore this archived record before editing it.')
       throw new HttpError(409, 'This record changed since you opened it. Reload the latest record before trying again.')

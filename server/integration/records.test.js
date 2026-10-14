@@ -126,6 +126,34 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   assert.equal(await User.countDocuments(), 1, 'doctor directory entries never create login accounts')
 
   const userId = (await User.findOne()).id
+  await t.test('doctor details include only the linked staff profile’s display fields', async () => {
+    assert.equal((await (await call(`/doctors/${doctor.id}`)).json()).record.profile, null, 'directory-only doctors do not borrow the signed-in employee’s profile')
+    const profile = await User.create({ name: 'Fictional Doctor Profile', email: 'doctor-profile@example.com', passwordHash: 'fixture-hash-never-returned', role: 'doctor', doctorId: doctor.id, phone: '5550123', gender: 'male', dateOfBirth: '1980-05-12', jobTitle: 'Consultant', department: 'Internal medicine', workLocation: 'Main clinic', permissions: ['diagnostics'] })
+    let result = (await (await call(`/doctors/${doctor.id}`)).json()).record
+    assert.equal(result.name, doctor.name, 'directory details retain their own values')
+    assert.equal(result.profile.name, profile.name)
+    assert.equal(result.profile.gender, 'male')
+    assert.equal(result.profile.dateOfBirth, '1980-05-12')
+    assert.equal(result.profile.jobTitle, 'Consultant')
+    assert.equal(result.profile.department, 'Internal medicine')
+    assert.equal(result.profile.workLocation, 'Main clinic')
+    assert.equal(result.profile.phone, '5550123')
+    assert.equal(result.profile.email, 'doctor-profile@example.com')
+    assert.deepEqual(Object.keys(result.profile).sort(), ['name', 'email', 'phone', 'gender', 'dateOfBirth', 'jobTitle', 'department', 'workLocation', 'active', 'updatedAt'].sort(), 'passwords, permissions, login identifiers and other account fields are excluded')
+    assert.equal((await (await call('/doctors')).json()).records[0].profile, undefined, 'personal profile details are not added to directory summaries')
+    assert.equal((await (await call(`/patients/${id}`)).json()).record.profile, undefined)
+    await User.updateOne({ _id: profile.id }, { $set: { department: 'Cardiology', active: false } })
+    result = (await (await call(`/doctors/${doctor.id}`)).json()).record
+    assert.equal(result.profile.department, 'Cardiology', 'the page reads current profile values without copying them into the directory')
+    assert.equal(result.profile.active, false)
+    const archived = await call(`/doctors/${doctor.id}`, 'DELETE', { version: result.version })
+    assert.equal(archived.status, 200)
+    result = (await archived.json()).record
+    assert.equal(result.profile.gender, 'male', 'archiving preserves the linked profile in detail responses')
+    const restored = await call(`/doctors/${doctor.id}/restore`, 'POST', { version: result.version })
+    assert.equal(restored.status, 200)
+    assert.equal((await restored.json()).record.profile.department, 'Cardiology')
+  })
   const makePatient = (name) => Patient.create({ ...patient, name, createdBy: userId, updatedBy: userId })
   const makeAppointment = (patientId, status, startsAt) => Appointment.create({ patientId, doctorId: doctor.id, status, startsAt, endsAt: new Date(startsAt.valueOf() + 1800000), statusHistory: [{ status, at: new Date(), by: userId }], createdBy: userId, updatedBy: userId })
 

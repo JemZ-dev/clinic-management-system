@@ -15,6 +15,8 @@ function Detail({ label, value }) {
   return <div><dt>{label}</dt><dd className={!value ? 'not-recorded' : ''}>{value || 'Not recorded'}</dd></div>
 }
 
+const profileGenderLabels = { female: 'Female', male: 'Male', non_binary: 'Others', other: 'Others', prefer_not_to_say: 'Prefer not to say' }
+
 function RecordDetails({ config, record, reload }) {
   const location = useLocation()
   const [confirm, setConfirm] = useState(false)
@@ -55,6 +57,13 @@ function RecordDetails({ config, record, reload }) {
         <Detail label="Full name" value={record.name} />{patient ? <Detail label="Birth date" value={record.dateOfBirth} /> : <Detail label="Specialty" value={record.specialty} />}
         <Detail label="Phone number" value={record.phone} /><Detail label="Email address" value={record.email} />{patient && <><Detail label="Gender" value={record.gender?.replaceAll('_', ' ')} /><Detail label="Address" value={record.address} /></>}
       </dl></section>
+      {!patient && <section className="workspace-section" aria-labelledby="doctor-profile-title"><h2 id="doctor-profile-title">Personal and work details</h2><p className="section-description">{record.profile ? 'From the doctor’s linked staff profile.' : 'No staff profile is linked to this doctor yet.'}</p><dl className="record-details">
+        <Detail label="Profile name" value={record.profile?.name} /><Detail label="Gender" value={profileGenderLabels[record.profile?.gender]} />
+        <Detail label="Birth date" value={record.profile?.dateOfBirth} /><Detail label="Profile phone number" value={record.profile?.phone} />
+        <Detail label="Profile email address" value={record.profile?.email} /><Detail label="Job title" value={record.profile?.jobTitle} />
+        <Detail label="Department" value={record.profile?.department} /><Detail label="Work location" value={record.profile?.workLocation} />
+        <Detail label="Staff account status" value={record.profile ? record.profile.active === false ? 'Inactive' : 'Active' : undefined} />
+      </dl></section>}
       {patient && <section className="workspace-section" aria-labelledby="emergency-title"><h2 id="emergency-title">Emergency contact</h2><dl className="record-details"><Detail label="Contact name" value={record.emergencyContact?.name} /><Detail label="Relationship" value={record.emergencyContact?.relationship} /><Detail label="Phone number" value={record.emergencyContact?.phone} /></dl></section>}
       {patient && <section className="workspace-section"><h2>Parent or guardian</h2><dl className="record-details"><Detail label="Guardian name" value={record.guardian?.name} /><Detail label="Relationship" value={record.guardian?.relationship} /><Detail label="Phone number" value={record.guardian?.phone} /></dl></section>}
     </div>
