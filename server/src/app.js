@@ -55,7 +55,7 @@ export function createApp({ pingDatabase, authService, config }) {
 
   app.use((error, _request, response, _next) => {
     if (error instanceof HttpError) {
-      return response.status(error.status).json({ message: error.message, ...(error.fields ? { fields: error.fields } : {}) })
+      return response.status(error.status).json({ message: error.message, ...(error.fields ? { fields: error.fields } : {}), ...(error.duplicateOrder ? { duplicateOrder: error.duplicateOrder } : {}) })
     }
     if (error.name === 'VersionError' || error.code === 11000) return response.status(409).json({ message: 'This record changed or already exists. Reload before trying again.' })
     if (error.type === 'entity.parse.failed') {

@@ -1,3 +1,5 @@
+import { diagnosticListSchema, listDiagnosticOrders } from '../services/diagnosticDirectory.js'
+import { guardDiagnosticRequest } from '../services/diagnosticDuplicates.js'
 import { Router } from 'express'
 import mongoose from 'mongoose'
 import { randomBytes, createHash } from 'node:crypto'
@@ -159,28 +161,13 @@ export function operationRoutes(authService) {
       response.json({ record: plain(record) })
     } catch (error) { if (error.code === 11000) throw new HttpError(409, 'That service code is already used.'); throw error }
   })
-  router.get('/orders', requirePermission('clinical', 'diagnostics', 'reception'), async (request, response) => {
-    const filter = {}
-    if (request.query.encounterId) filter.encounterId = validate(id, request.query.encounterId)
-    if (request.auth.user.role === 'doctor') {
-      if (!request.auth.user.doctorId) return response.json({ records: [] })
-      filter.doctorId = request.auth.user.doctorId
-    }
-    const records = await DiagnosticOrder.find(filter).populate('encounterId', 'patientName patientNumber').sort({ createdAt: -1 }).limit(200)
-    response.json({ records: records.map((record) => {
-      const item = plain(record); delete item.requestDigest
-      item.patientName = record.encounterId?.patientName || 'Patient unavailable'
-      item.patientNumber = record.encounterId?.patientNumber || ''
-      item.encounterId = String(record.encounterId?._id || record.encounterId)
-      if (!can(request.auth.user, 'clinical') && !can(request.auth.user, 'diagnostics')) { delete item.reviewNote; delete item.reports; delete item.history }
-      return item
-    }) })
-  })
+  router.get('/orders', requirePermission('clinical', 'diagnostics', 'reception'), async (request, response) => response.json(await listDiagnosticOrders(validate(diagnosticListSchema, request.query), request.auth.user)))
   router.post('/orders', requirePermission('clinical', 'reception'), async (request, response) => {
     const input = validate(orderInput, request.body)
+    const requestDigest = digest(input.repeatAcknowledged ? input : { encounterId: input.encounterId, serviceId: input.serviceId, requestId: input.requestId })
     const existing = await DiagnosticOrder.findOne({ requestId: input.requestId })
     if (existing) {
-      if (existing.requestDigest !== digest(input) || String(existing.createdBy) !== request.auth.user.id) conflict()
+      if (existing.requestDigest !== requestDigest || String(existing.createdBy) !== request.auth.user.id) conflict()
       return response.json({ record: plain(existing) })
     }
     let record
@@ -191,7 +178,8 @@ export function operationRoutes(authService) {
         if (encounter.kind !== 'external_test' && !can(request.auth.user, 'clinical')) throw new HttpError(403, 'A doctor must request tests for a consultation.')
         const service = await ClinicService.findOne({ _id: input.serviceId, active: true }).session(session)
         if (!service || !['laboratory', 'imaging', 'diagnostic'].includes(service.category)) throw new HttpError(400, 'Choose an available diagnostic service.')
-        ;[record] = await DiagnosticOrder.create([{ ...input, patientId: encounter.patientId, doctorId: encounter.doctorId, serviceName: service.name, category: service.category, priceCentavos: service.priceCentavos, external: service.external, provider: service.provider, requestDigest: digest(input), createdBy: request.auth.user.id, history: [event(request.auth.user, 'requested')] }], { session })
+        const duplicate = await guardDiagnosticRequest(encounter.patientId, input, request.auth.user, session)
+        ;[record] = await DiagnosticOrder.create([{ ...input, patientId: encounter.patientId, doctorId: encounter.doctorId, serviceName: service.name, category: service.category, priceCentavos: service.priceCentavos, external: service.external, provider: service.provider, requestDigest, createdBy: request.auth.user.id, history: [event(request.auth.user, 'requested'), ...(duplicate ? [event(request.auth.user, 'repeat_authorized', input.repeatReason)] : [])] }], { session })
         if (!service.external) await Invoice.updateOne({ encounterId: encounter.id }, { $push: { lines: { sourceKey: `order:${record.id}`, description: service.name, quantity: 1, unitCentavos: service.priceCentavos, actor: actor(request.auth.user) } }, $inc: { __v: 1 } }, { session })
       })
     } catch (error) { if (error.code === 11000) conflict(); throw error }

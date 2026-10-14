@@ -91,7 +91,7 @@ export function SchedulesPage() {
   const [doctor, setDoctor] = useState(null)
   return <>{dialog}<header className="page-heading"><div><h1>Doctor schedules</h1><p>Set working periods, breaks, and leave before booking appointments.</p></div></header><section className="workspace-section"><RecordPicker kind="doctors" label="Doctor" value={doctor?.id || ''} selected={doctor} onChange={async (_id, record) => { if (doctor && !await confirm('Switching doctors will discard any unsaved schedule changes.', { title: 'Switch doctor?', confirmLabel: 'Discard and switch', cancelLabel: 'Keep editing', variant: 'danger' })) return; setDoctor(record) }} />{doctor && <DoctorSchedule key={doctor.id} doctor={doctor} />}</section></>
 }
-export function DiagnosticsPage() { return <><header className="page-heading"><div><h1>Diagnostics</h1><p>Manage requested tests, reports, and outstanding reviews. Latest 200 requests.</p></div></header><section className="workspace-section"><OrdersPanel /></section></> }
+export function DiagnosticsPage() { return <><header className="page-heading"><div><h1>Diagnostics</h1><p>Find diagnostic requests by patient, test, status, provider, and request date.</p></div></header><section className="workspace-section"><OrdersPanel /></section></> }
 export function BillingPage() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') || '', status = params.get('status') || 'all', from = params.get('from') || '', through = params.get('through') || ''

@@ -25,8 +25,10 @@ const diagnosticSchema = new mongoose.Schema({
   scheduledAt: Date, reports: [ref('DiagnosticReport')], reviewNote: String,
   history: [{ _id: false, action: String, note: String, at: Date, actor }],
   requestId: { type: String, required: true, unique: true }, requestDigest: String, createdBy: ref('User', true),
+  repeatOf: ref('DiagnosticOrder'), repeatReason: { type: String, maxlength: 500, default: '' },
 }, options)
 diagnosticSchema.index({ encounterId: 1, createdAt: -1 })
+diagnosticSchema.index({ patientId: 1, serviceId: 1, stage: 1, createdAt: -1 })
 export const DiagnosticOrder = mongoose.model('DiagnosticOrder', diagnosticSchema)
 const lineSchema = new mongoose.Schema({
   sourceKey: String, description: String, quantity: Number, unitCentavos: Number,
