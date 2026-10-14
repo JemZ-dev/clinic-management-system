@@ -96,7 +96,7 @@ test('clinic workflow: permissions, invitation, arrival, assessment, consultatio
   assert.equal(pending.status, 'expired')
   await ok('admin', `/operations/invitations/${pending.id}/replace`, 'POST', { version: pending.version })
   assert.equal((await ok('admin', '/operations/invitations')).records.find((item) => item.id === pending.id).status, 'pending')
-  let patient = (await ok('reception', '/patients', 'POST', { name: 'Fictional Patient', dateOfBirth: '1990-01-01' }, 201)).record
+  let patient = (await ok('reception', '/patients', 'POST', { name: 'Fictional Patient', dateOfBirth: '1990-01-01', gender: 'prefer_not_to_say' }, 201)).record
   let arrival = { requestId: randomUUID(), kind: 'walk_in', patientId: patient.id, doctorId: doctorRecord.id, reason: 'Fictional consultation' }
   let encounter = (await ok('reception', '/encounters', 'POST', arrival, 201)).record
   const retry = (await ok('reception', '/encounters', 'POST', arrival, 201)).record

@@ -10,10 +10,16 @@ test('date-only birth dates reject future dates and calendar overflow', () => {
 })
 
 test('record validation rejects injected fields and identifies nested errors', () => {
-  const patient = { name: ' Fictional Patient ', dateOfBirth: '2000-01-01' }
+  const patient = { name: ' Fictional Patient ', dateOfBirth: '2000-01-01', gender: 'prefer_not_to_say' }
   const parsed = validate(patientSchema, patient)
   assert.equal(parsed.name, 'Fictional Patient')
   assert.equal(parsed.medicalHistory.allergies, '')
+  for (const gender of ['', undefined, null, 'invalid']) {
+    assert.throws(() => validate(patientSchema, { ...patient, gender }), (error) => error.status === 400 && !!error.fields.gender)
+  }
+  for (const gender of ['female', 'male', 'non_binary', 'other', 'prefer_not_to_say']) {
+    assert.equal(validate(patientSchema, { ...patient, gender }).gender, gender)
+  }
   assert.throws(() => validate(patientSchema, { ...patient, archivedAt: new Date() }), { status: 400 })
   assert.throws(() => validate(patientSchema, { ...patient, emergencyContact: { phone: 'invalid' } }), (error) => error.status === 400 && !!error.fields['emergencyContact.phone'])
   assert.throws(() => validate(patientSchema, { ...patient, medicalHistory: { allergies: 'x'.repeat(2001) } }), (error) => !!error.fields['medicalHistory.allergies'])

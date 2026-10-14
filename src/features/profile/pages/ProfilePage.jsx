@@ -94,12 +94,12 @@ export default function ProfilePage() {
         {saved && <Alert variant="success" role="status">Your profile has been updated.</Alert>}
         <fieldset disabled={busy}>
           <section className="profile-field-section" aria-labelledby="personal-details-title">
-            <div className="profile-section-heading"><h2 id="personal-details-title">Personal details</h2><p>{editing ? 'Full name is required. Other details are optional.' : 'Your personal and contact information.'}</p></div>
+            <div className="profile-section-heading"><h2 id="personal-details-title">Personal details</h2><p>{editing ? 'Full name, date of birth, and gender are required. Other details are optional.' : 'Your personal and contact information.'}</p></div>
             <div className="profile-field-grid">
               {field('name', 'Full name', { autoComplete: 'name', required: true, minLength: 2, maxLength: 100 })}
-              {field('phone', 'Phone number', { type: 'tel', autoComplete: 'tel', maxLength: 30, help: 'Use 7–15 digits, including the country code if provided.' })}
-              {field('dateOfBirth', 'Date of birth', { type: 'date', autoComplete: 'bday', min: '1900-01-01', max: clinicToday(), help: 'Choose a real date from January 1, 1900 through today.' })}
-              {editing ? <Form.Group className="record-field" controlId="profile-gender"><Form.Label>Gender <span className="optional-label">Optional</span></Form.Label><Form.Select name="gender" value={values.gender} onChange={(event) => change('gender', event.target.value)} onBlur={validateField} isInvalid={!!fields.gender} aria-invalid={!!fields.gender} aria-describedby={fields.gender ? 'profile-gender-error' : undefined}><option value="">Not provided</option><option value="female">Female</option><option value="male">Male</option><option value="other">Others</option><option value="prefer_not_to_say">Prefer not to say</option></Form.Select>{fields.gender && <Form.Control.Feedback type="invalid" id="profile-gender-error">{fields.gender}</Form.Control.Feedback>}</Form.Group> : detail('gender', 'Gender', genderLabels[values.gender])}
+              {field('phone', 'Phone number', { type: 'tel', autoComplete: 'tel', maxLength: 30, help: false })}
+              {field('dateOfBirth', 'Date of birth', { required: true, type: 'date', autoComplete: 'bday', min: '1900-01-01', max: clinicToday() })}
+              {editing ? <Form.Group className="record-field" controlId="profile-gender"><Form.Label>Gender <span className="required-marker">*</span></Form.Label><Form.Select name="gender" required value={values.gender} onChange={(event) => change('gender', event.target.value)} onBlur={validateField} isInvalid={!!fields.gender} aria-invalid={!!fields.gender} aria-describedby={fields.gender ? 'profile-gender-error' : undefined}><option value="" disabled>Select gender</option><option value="female">Female</option><option value="male">Male</option><option value="other">Others</option><option value="prefer_not_to_say">Prefer not to say</option></Form.Select>{fields.gender && <Form.Control.Feedback type="invalid" id="profile-gender-error">{fields.gender}</Form.Control.Feedback>}</Form.Group> : detail('gender', 'Gender', genderLabels[values.gender])}
             </div>
           </section>
           <section className="profile-field-section" aria-labelledby="work-details-title">
@@ -107,7 +107,7 @@ export default function ProfilePage() {
             <div className="profile-field-grid">
               {field('jobTitle', 'Job title', { maxLength: 100, autoComplete: 'organization-title' })}
               {field('department', 'Department', { maxLength: 100 })}
-              <div className="full-width">{field('workLocation', 'Work location', { maxLength: 160, help: 'For example, Reception or Consultation room. These details do not change your account access.' })}</div>
+              <div className="full-width">{field('workLocation', 'Work location', { maxLength: 160, help: 'Enter where you usually work in the clinic, such as the front desk or consultation room.' })}</div>
             </div>
           </section>
         </fieldset>

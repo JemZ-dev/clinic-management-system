@@ -1,6 +1,7 @@
 import { z } from 'zod'
+import { emailDomainError } from '../../../shared/emailPolicy.js'
 import { MAX_PAYMENT_REFERENCE_LENGTH, PAYMENT_REFERENCE_PATTERN } from '../../../shared/paymentValidation.js'
-import { recordIdSchema as id } from './records.js'
+import { recordIdSchema as id, phoneSchema } from './records.js'
 import { clinicDate, validDate } from '../utils/clinicTime.js'
 import { prescriptionSchema } from './medicines.js'
 const text = (max) => z.string().trim().max(max)
@@ -35,8 +36,8 @@ export const scheduleInput = z.object({ version: version.optional(), weekly: z.a
 export const accountInput = z.object({ role: z.enum(['admin', 'staff', 'doctor']), permissions: z.array(z.enum(['assess', 'diagnostics', 'dispense'])).max(3), doctorId: z.union([id, z.literal('')]).default('') }).strict().refine((value) => value.role !== 'doctor' || !!value.doctorId, { path: ['doctorId'], message: 'Link a doctor directory record.' })
 export const invitationInput = z.object({
   ...accountInput.shape,
-  email: z.email().max(254).transform((value) => value.toLowerCase()),
-  newDoctor: z.object({ name: z.string().trim().min(2).max(100), specialty: z.string().trim().min(2).max(100), phone: z.string().trim().max(30).regex(/^[+\d\s().-]*$/).default('') }).strict().optional(),
+  email: z.email().max(254).transform((value) => value.toLowerCase()).refine((value) => !emailDomainError(value), { message: 'This email domain is not allowed. Use your personal or clinic email address.' }),
+  newDoctor: z.object({ name: z.string().trim().min(2).max(100), specialty: z.string().trim().min(2).max(100), phone: phoneSchema.default('') }).strict().optional(),
 }).strict().superRefine((value, context) => {
   if (value.role === 'doctor' && !value.doctorId && !value.newDoctor) context.addIssue({ code: 'custom', path: ['doctorId'], message: 'Choose an existing doctor or enter the new doctor’s details.' })
   if (value.newDoctor && (value.role !== 'doctor' || value.doctorId)) context.addIssue({ code: 'custom', path: ['newDoctor'], message: 'Create a new doctor or select an existing record, not both.' })

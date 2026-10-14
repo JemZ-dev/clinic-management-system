@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { emailDomainError } from '../../../../shared/emailPolicy.js'
 import { Link, useLocation, useNavigate } from 'react-router'
 import Form from 'react-bootstrap/Form'
 import Alert from 'react-bootstrap/Alert'
@@ -29,6 +30,11 @@ export default function AuthPage({ registration = false }) {
   async function submit(event) {
     event.preventDefault()
     if (busy) return
+    if (registration && emailDomainError(values.email)) {
+      setFields({ email: emailDomainError(values.email) })
+      document.getElementById('staff-email')?.focus()
+      return
+    }
     setBusy(true); setError(''); setFields({})
     try {
       const user = registration ? await register(values) : await signIn({ email: values.email, password: values.password })
@@ -56,7 +62,7 @@ export default function AuthPage({ registration = false }) {
         </Form.Group>}
         <Form.Group className="mb-3" controlId="staff-email">
           <Form.Label>Email address <span className="required-marker">*</span></Form.Label>
-          <Form.Control name="email" type="email" autoComplete="username" autoFocus={!registration} value={values.email} onChange={change} required maxLength={254} isInvalid={!!fields.email} aria-describedby="email-error" />
+          <Form.Control name="email" type="email" pattern={'[^\\s@]+@[^\\s@]+\\.[^\\s@]+'} title="Enter a valid email address, such as name@example.com." autoComplete="username" autoFocus={!registration} value={values.email} onChange={change} required maxLength={254} isInvalid={!!fields.email} aria-describedby="email-error" />
           <Form.Control.Feedback type="invalid" id="email-error">{fields.email}</Form.Control.Feedback>
         </Form.Group>
         <Form.Group className="mb-3" controlId="staff-password">

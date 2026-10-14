@@ -1,8 +1,13 @@
 import { z } from 'zod'
+import { phoneError } from '../../../shared/phoneValidation.js'
 
 const text = (max) => z.string().trim().max(max, `Use ${max} characters or fewer.`)
 const name = text(100).min(2, 'Enter at least 2 characters.')
-const phone = text(30).regex(/^[+\d\s().-]*$/, 'Enter a valid phone number.')
+export const phoneSchema = z.string().trim().superRefine((value, context) => {
+  const message = phoneError(value)
+  if (message) context.addIssue({ code: 'custom', message })
+})
+const phone = phoneSchema
 const email = text(254).toLowerCase().refine((value) => !value || z.email().safeParse(value).success, 'Enter a valid email address.')
 
 export function todayInClinic() {
@@ -18,7 +23,7 @@ export function validBirthDate(value) {
 export const patientSchema = z.object({
   name,
   dateOfBirth: z.string().refine(validBirthDate, 'Enter a real birth date from 1900 through today.'),
-  gender: z.enum(['', 'female', 'male', 'non_binary', 'other', 'prefer_not_to_say']).default(''),
+  gender: z.enum(['female', 'male', 'non_binary', 'other', 'prefer_not_to_say'], { error: 'Choose a gender from the list.' }),
   guardian: z.object({ name: text(100).default(''), relationship: text(80).default(''), phone: phone.default('') }).strict().default({ name: '', relationship: '', phone: '' }),
   phone: phone.default(''), email: email.default(''), address: text(500).default(''),
   emergencyContact: z.object({ name: text(100).default(''), relationship: text(80).default(''), phone: phone.default('') }).strict().default({ name: '', relationship: '', phone: '' }),

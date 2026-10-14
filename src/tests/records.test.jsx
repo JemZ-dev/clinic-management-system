@@ -12,7 +12,7 @@ import { doctorsConfig } from '../features/doctors/doctors.config.js'
 import { api } from '../lib/api.js'
 
 const id = '0123456789abcdef01234567'
-const record = { ...structuredClone(patientsConfig.defaults), id, name: 'Fictional Patient', patientId: 'PT-000000000001', dateOfBirth: '2000-01-01', version: 4, archivedAt: null, updatedAt: '2026-01-01T00:00:00Z' }
+const record = { ...structuredClone(patientsConfig.defaults), id, name: 'Fictional Patient', patientId: 'PT-000000000001', dateOfBirth: '2000-01-01', gender: 'prefer_not_to_say', version: 4, archivedAt: null, updatedAt: '2026-01-01T00:00:00Z' }
 const list = (records = [], page = 1, total = records.length) => ({ data: { records, pagination: { page, total, limit: 10, pages: Math.max(1, Math.ceil(total / 10)) } } })
 const detail = (value = record) => ({ data: { record: value } })
 
@@ -64,19 +64,20 @@ describe('patient and doctor workflows', () => {
     const { user, router } = mount()
     await user.type(screen.getByLabelText(/Full name/), 'Fictional Patient')
     await user.type(screen.getByLabelText(/Birth date/), '2000-01-01')
-    await user.type(screen.getByLabelText(/Contact phone number/), 'invalid')
+    await user.selectOptions(screen.getByLabelText(/^Gender/), 'prefer_not_to_say')
+    await user.type(screen.getByLabelText(/Contact phone number/), '555-0100')
     await user.click(screen.getByRole('button', { name: 'Save patient' }))
     await screen.findByText('Enter a valid phone number.')
     expect(screen.getByLabelText(/Full name/).value).toBe('Fictional Patient')
     expect(screen.getByLabelText(/Contact phone number/).getAttribute('aria-describedby')).toBe('record-emergencyContact-phone-error')
     await waitFor(() => expect(document.activeElement.id).toBe('record-form-error'))
     await user.clear(screen.getByLabelText(/Contact phone number/))
-    await user.type(screen.getByLabelText(/Contact phone number/), '555')
+    await user.type(screen.getByLabelText(/Contact phone number/), '555-0101')
     await user.click(screen.getByRole('button', { name: 'Save patient' }))
     await screen.findByRole('heading', { name: 'Fictional Patient', level: 1 })
     expect(router.state.location.pathname).toBe(`/patients/${id}`)
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(post.mock.calls[1][1].emergencyContact.phone).toBe('555')
+    expect(post.mock.calls[1][1].emergencyContact.phone).toBe('555-0101')
     expect(screen.getByText('Patient added successfully.')).toBeTruthy()
   })
 
@@ -87,6 +88,7 @@ describe('patient and doctor workflows', () => {
     const { user, router } = mount()
     await user.type(screen.getByLabelText(/Full name/), 'Fictional Patient')
     await user.type(screen.getByLabelText(/Birth date/), '2000-01-01')
+    await user.selectOptions(screen.getByLabelText(/^Gender/), 'prefer_not_to_say')
     await user.click(screen.getByRole('button', { name: /Save patient/ }))
     expect(screen.getByRole('button', { name: /Save patient/ }).disabled).toBe(true)
     await user.click(screen.getByRole('link', { name: 'Doctors', exact: true }))

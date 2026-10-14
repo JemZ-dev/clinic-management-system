@@ -1,6 +1,8 @@
+import { phoneError } from './phoneValidation.js'
+
 export const profileFields = ['name', 'phone', 'gender', 'dateOfBirth', 'jobTitle', 'department', 'workLocation']
-const textLimits = { name: 100, phone: 30, jobTitle: 100, department: 100, workLocation: 160 }
-const genders = ['', 'female', 'male', 'non_binary', 'other', 'prefer_not_to_say']
+const textLimits = { name: 100, jobTitle: 100, department: 100, workLocation: 160 }
+const genders = ['female', 'male', 'non_binary', 'other', 'prefer_not_to_say']
 const todayInClinic = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 
 export function profileFieldError(name, input, today = todayInClinic()) {
@@ -12,13 +14,10 @@ export function profileFieldError(name, input, today = todayInClinic()) {
     if (value.length < 2) return 'Enter at least 2 characters.'
     if (!/\p{L}/u.test(value)) return 'Enter a name that includes letters.'
   }
-  if (name === 'phone' && value) {
-    if (!/^\+?[\d\s().-]+$/.test(value)) return 'Use digits, spaces, parentheses, hyphens, and an optional leading +.'
-    const digits = value.replace(/\D/g, '')
-    if (digits.length < 7 || digits.length > 15) return 'Enter a phone number with 7 to 15 digits.'
-  }
+  if (name === 'phone') return phoneError(value)
   if (name === 'gender' && !genders.includes(value)) return 'Choose a gender from the list.'
-  if (name === 'dateOfBirth' && value) {
+  if (name === 'dateOfBirth') {
+    if (!value) return 'Enter your date of birth.'
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'Enter a complete, valid date of birth.'
     const date = new Date(`${value}T00:00:00Z`)
     if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== value) return 'Enter a real calendar date.'

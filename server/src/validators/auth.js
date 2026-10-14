@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { HttpError } from '../utils/errors.js'
 import { profileFieldError } from '../../../shared/profileValidation.js'
+import { emailDomainError } from '../../../shared/emailPolicy.js'
 
 const name = z.string().trim().min(2, 'Enter at least 2 characters.').max(100, 'Use 100 characters or fewer.')
 const email = z.string().trim().toLowerCase().max(254).email('Enter a valid email address.')
 const password = z.string().min(12, 'Use at least 12 characters.').max(128, 'Use 128 characters or fewer.')
 
 export const registerSchema = z.object({
-  name, email, password, registrationCode: z.string().min(1, 'Enter the clinic access code.').max(128),
+  name, email: email.refine((value) => !emailDomainError(value), { message: 'This email domain is not allowed. Use your personal or clinic email address.' }), password, registrationCode: z.string().min(1, 'Enter the clinic access code.').max(128),
 }).strict()
 export const loginSchema = z.object({
   email, password: z.string().min(1, 'Enter your password.').max(128),
@@ -18,8 +19,8 @@ const profileField = (field) => z.string().trim().superRefine((value, context) =
 })
 export const profileSchema = z.object({
   name: profileField('name'), phone: profileField('phone'),
-  gender: z.enum(['', 'female', 'male', 'non_binary', 'other', 'prefer_not_to_say']).optional(),
-  dateOfBirth: profileField('dateOfBirth').optional(),
+  gender: z.enum(['female', 'male', 'non_binary', 'other', 'prefer_not_to_say'], { error: 'Choose a gender from the list.' }),
+  dateOfBirth: profileField('dateOfBirth'),
   jobTitle: profileField('jobTitle').optional(), department: profileField('department').optional(), workLocation: profileField('workLocation').optional(),
 }).strict()
 

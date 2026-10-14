@@ -12,6 +12,7 @@
     "test:server": "npm --prefix server test",
     "test:integration": "npm --prefix server run test:integration",
     "test:client": "vitest run",
+    "test:dev": "node --test dev/apiOrigin.test.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

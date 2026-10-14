@@ -6,6 +6,7 @@ import Button from 'react-bootstrap/Button'
 import AsyncState from '../../../components/ui/AsyncState.jsx'
 import UnsavedChanges from '../../../components/records/UnsavedChanges.jsx'
 import { apiError } from '../../../lib/api.js'
+import PhoneInput from '../../../components/records/PhoneInput.jsx'
 
 export function WorkflowResource({ resource, children }) {
   if (resource.error) return <AsyncState title="Unable to load records" message={resource.error} onRetry={resource.reload} />
@@ -14,6 +15,11 @@ export function WorkflowResource({ resource, children }) {
 }
 export function Field({ label, value, onChange, options, multiline, help, error, ...props }) {
   const id = useId()
+  if (props.type === 'tel') {
+    return <Form.Group controlId={id} className="workflow-field"><Form.Label>{label}{props.required && <span className="required-marker"> *</span>}</Form.Label>
+      <PhoneInput {...props} id={id} value={value ?? ''} error={error} help={help} onChange={(event) => onChange(event.target.value)} />
+    </Form.Group>
+  }
   return <Form.Group controlId={id} className="workflow-field"><Form.Label>{label}{props.required && <span className="required-marker"> *</span>}</Form.Label>
     {options ? <Form.Select {...props} value={value} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined}>{options.map((option) => <option key={option.value ?? option} value={option.value ?? option}>{option.label ?? option}</option>)}</Form.Select> : <Form.Control {...props} as={multiline ? 'textarea' : 'input'} rows={multiline ? 3 : undefined} value={value ?? ''} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined} />}
     {(error || help) && <div id={`${id}-help`} className={error ? 'field-error' : 'form-text'}>{error || help}</div>}
