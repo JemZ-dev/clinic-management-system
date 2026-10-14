@@ -7,7 +7,7 @@ export default function RecordField({ name, label, value, onChange, errors, requ
   if (props.type === 'tel' || name.toLowerCase().endsWith('phone')) {
     return <Form.Group className="record-field" controlId={id}>
       <Form.Label>{label}{required ? <span className="required-marker"> *</span> : <span className="optional-label">Optional</span>}</Form.Label>
-      <PhoneInput {...props} id={id} name={name} value={value} error={error} help={help} required={required} onChange={(event) => onChange(name, event.target.value)} />
+      <PhoneInput {...props} id={id} name={name} value={value} error={error} help={help} required={required} onChange={(value) => onChange(name, value)} />
     </Form.Group>
   }
   return <Form.Group className={`record-field ${multiline ? 'full-width' : ''}`} controlId={id}>

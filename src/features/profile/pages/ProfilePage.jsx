@@ -97,7 +97,7 @@ export default function ProfilePage() {
             <div className="profile-section-heading"><h2 id="personal-details-title">Personal details</h2><p>{editing ? 'Full name, date of birth, and gender are required. Other details are optional.' : 'Your personal and contact information.'}</p></div>
             <div className="profile-field-grid">
               {field('name', 'Full name', { autoComplete: 'name', required: true, minLength: 2, maxLength: 100 })}
-              {field('phone', 'Phone number', { type: 'tel', autoComplete: 'tel', maxLength: 30, help: false })}
+              {field('phone', 'Phone number', { type: 'tel', autoComplete: 'tel', maxLength: 11, help: false })}
               {field('dateOfBirth', 'Date of birth', { required: true, type: 'date', autoComplete: 'bday', min: '1900-01-01', max: clinicToday() })}
               {editing ? <Form.Group className="record-field" controlId="profile-gender"><Form.Label>Gender <span className="required-marker">*</span></Form.Label><Form.Select name="gender" required value={values.gender} onChange={(event) => change('gender', event.target.value)} onBlur={validateField} isInvalid={!!fields.gender} aria-invalid={!!fields.gender} aria-describedby={fields.gender ? 'profile-gender-error' : undefined}><option value="" disabled>Select gender</option><option value="female">Female</option><option value="male">Male</option><option value="other">Others</option><option value="prefer_not_to_say">Prefer not to say</option></Form.Select>{fields.gender && <Form.Control.Feedback type="invalid" id="profile-gender-error">{fields.gender}</Form.Control.Feedback>}</Form.Group> : detail('gender', 'Gender', genderLabels[values.gender])}
             </div>

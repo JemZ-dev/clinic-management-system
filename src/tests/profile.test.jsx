@@ -76,7 +76,7 @@ describe('staff profile', () => {
     await user.type(screen.getByLabelText(/^Department/), 'Front desk')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await screen.findByText('Enter your full name.')
-    expect(screen.getByText('Enter a mobile or landline number with 7 to 15 digits.')).toBeTruthy()
+    expect(screen.getByText('Enter a mobile or landline number with 7 to 11 digits.')).toBeTruthy()
     expect(patch).not.toHaveBeenCalled()
     expect(screen.getByLabelText(/^Department/).value).toBe('Front desk')
   })

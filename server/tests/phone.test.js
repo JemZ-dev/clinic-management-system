@@ -6,7 +6,7 @@ import { patientSchema, doctorSchema } from '../src/validators/records.js'
 import { profileSchema } from '../src/validators/auth.js'
 import { invitationInput } from '../src/validators/workflow.js'
 
-test('mobile, local landline, area-code and international phone formats share digit and character limits', () => {
+test('mobile and landline phones accept only 7 to 11 digits and preserve leading zeroes', () => {
   for (const phone of examples.valid) assert.equal(phoneError(phone), '', phone)
   for (const phone of examples.invalid) assert.ok(phoneError(phone), phone)
   for (const phone of [null, 1234567, {}, true]) assert.ok(phoneError(phone))

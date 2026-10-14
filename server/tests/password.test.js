@@ -98,7 +98,7 @@ test('profile birthdays validate calendar dates and the clinic date boundary', (
 test('profile identity and phone validation accepts real formats and rejects unusable values', () => {
   const base = { name: 'José 李', phone: '', dateOfBirth: '2000-02-29', gender: 'prefer_not_to_say' }
   assert.deepEqual(validateProfile(base), {})
-  for (const phone of ['', '0917 123 4567', '+63 917 123 4567', '(555) 123-4567']) {
+  for (const phone of ['', '09171234567', '0281234567', '5550100']) {
     assert.equal(validate(profileSchema, { ...base, phone }).phone, phone)
   }
   for (const phone of ['---', '123', '1234567890123456', '123+4567890', 'call me', '+63+9171234567']) {

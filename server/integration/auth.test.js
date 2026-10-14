@@ -70,11 +70,11 @@ test('authentication and profile flow against an isolated Atlas database', async
   assert.equal((await call('/profile', { method: 'PATCH', cookie, body: { name: 'Updated', phone: '555' }, customHeader: false })).status, 403)
   assert.equal((await call('/profile', { method: 'PATCH', cookie, body: { name: 'X', phone: 'not-a-phone' } })).status, 400)
   assert.equal((await call('/profile', { method: 'PATCH', cookie, body: { name: 'Updated', phone: '555', role: 'admin' } })).status, 400)
-  const updated = await call('/profile', { method: 'PATCH', cookie, body: { name: 'Updated Fictional Staff', phone: '+63 900 000 0000', dateOfBirth: '2000-02-29', gender: 'prefer_not_to_say' } })
+  const updated = await call('/profile', { method: 'PATCH', cookie, body: { name: 'Updated Fictional Staff', phone: '09000000000', dateOfBirth: '2000-02-29', gender: 'prefer_not_to_say' } })
   assert.equal(updated.status, 200)
   assert.equal((await (await call('/me', { cookie })).json()).user.name, 'Updated Fictional Staff')
-  assert.equal((await User.findById(data.user.id)).phone, '+63 900 000 0000')
-  const profileDetails = { name: 'Updated Fictional Staff', phone: '+63 900 000 0000', gender: 'non_binary', dateOfBirth: '2000-02-29', jobTitle: 'Receptionist', department: 'Front desk', workLocation: 'Main clinic' }
+  assert.equal((await User.findById(data.user.id)).phone, '09000000000')
+  const profileDetails = { name: 'Updated Fictional Staff', phone: '09000000000', gender: 'non_binary', dateOfBirth: '2000-02-29', jobTitle: 'Receptionist', department: 'Front desk', workLocation: 'Main clinic' }
   const profileSave = await call('/profile', { method: 'PATCH', cookie, body: profileDetails })
   assert.equal(profileSave.status, 200)
   const profileUser = (await profileSave.json()).user

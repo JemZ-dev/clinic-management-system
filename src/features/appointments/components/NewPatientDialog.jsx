@@ -76,7 +76,7 @@ export default function NewPatientDialog({ onSaved, onClose, onBusyChange }) {
               </Form.Select>
               {errors.gender && <Form.Control.Feedback type="invalid" id={`${id}-gender-error`}>{errors.gender}</Form.Control.Feedback>}
             </Form.Group>
-            {field('phone', 'Phone number', { type: 'tel', maxLength: 30 })}
+            {field('phone', 'Phone number', { type: 'tel', maxLength: 11 })}
             {field('email', 'Email address', { type: 'email', maxLength: 254 })}
           </div>
           {errors.duplicate && <Alert variant="warning" className="mt-3">

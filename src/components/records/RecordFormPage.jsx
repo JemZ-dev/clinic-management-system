@@ -63,16 +63,16 @@ function RecordForm({ config, record }) {
           {field('name', 'Full name', { required: true, maxLength: 100, autoComplete: 'off' })}
           {patient ? field('dateOfBirth', 'Birth date', { required: true, type: 'date', min: '1900-01-01', max: clinicToday() }) : field('specialty', 'Specialty', { required: true, maxLength: 100, help: 'For example, Family medicine.' })}
           {patient && <Form.Group controlId="patient-gender"><Form.Label>Gender <span className="required-marker">*</span></Form.Label><Form.Select required value={values.gender || ''} onChange={(event) => change('gender', event.target.value)} isInvalid={!!errors.gender} aria-describedby={errors.gender ? 'patient-gender-error' : undefined}><option value="" disabled>Select gender</option>{[['female', 'Female'], ['male', 'Male'], ['non_binary', 'Non-binary'], ['other', 'Other'], ['prefer_not_to_say', 'Prefer not to say']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Form.Select>{errors.gender && <Form.Control.Feedback type="invalid" id="patient-gender-error">{errors.gender}</Form.Control.Feedback>}</Form.Group>}
-          {field('phone', 'Phone number', { type: 'tel', maxLength: 30, autoComplete: 'off' })}
+          {field('phone', 'Phone number', { type: 'tel', maxLength: 11, autoComplete: 'off' })}
           {field('email', 'Email address', { type: 'email', maxLength: 254, autoComplete: 'off' })}
           {patient && field('address', 'Address', { multiline: true, maxLength: 500, autoComplete: 'off' })}
         </div></section>
         {patient && <>
-          <section className="workspace-section"><h2>Guardian, if applicable</h2><div className="record-form-grid">{field('guardian.name', 'Guardian name', { maxLength: 100 })}{field('guardian.relationship', 'Relationship to patient', { maxLength: 80 })}{field('guardian.phone', 'Guardian phone', { maxLength: 30, type: 'tel' })}</div></section>
+          <section className="workspace-section"><h2>Guardian, if applicable</h2><div className="record-form-grid">{field('guardian.name', 'Guardian name', { maxLength: 100 })}{field('guardian.relationship', 'Relationship to patient', { maxLength: 80 })}{field('guardian.phone', 'Guardian phone', { maxLength: 11, type: 'tel' })}</div></section>
           <section className="workspace-section" aria-labelledby="emergency-form-title"><h2 id="emergency-form-title">Emergency contact</h2><div className="record-form-grid">
             {field('emergencyContact.name', 'Contact name', { maxLength: 100, autoComplete: 'off' })}
             {field('emergencyContact.relationship', 'Relationship', { maxLength: 80 })}
-            {field('emergencyContact.phone', 'Contact phone number', { type: 'tel', maxLength: 30, autoComplete: 'off' })}
+            {field('emergencyContact.phone', 'Contact phone number', { type: 'tel', maxLength: 11, autoComplete: 'off' })}
           </div></section>
           <section className="workspace-section" aria-labelledby="history-form-title"><h2 id="history-form-title">Medical history</h2><p className="section-description">Leave unknown information blank. Record “None reported” only when confirmed with the patient.</p><div className="record-form-grid">
             {field('medicalHistory.allergies', 'Allergies', { multiline: true, maxLength: 2000 })}

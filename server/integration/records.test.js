@@ -42,7 +42,7 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   const registration = await call('/auth/register', 'POST', { name: 'Fictional Staff', email: 'records@example.com', password: 'fictional-records-passphrase', registrationCode: config.registrationCode })
   assert.equal(registration.status, 201)
   cookie = registration.headers.get('set-cookie').split(';')[0]
-  const patient = { name: 'Fictional [Patient]', dateOfBirth: '2000-02-29', gender: 'prefer_not_to_say', phone: '+63 900 000 0000', email: 'PATIENT@EXAMPLE.COM', address: 'Fictional address', emergencyContact: { name: 'Fictional Contact', relationship: 'Sibling', phone: '555-0100' }, medicalHistory: { allergies: 'Fictional allergy', conditions: 'Fictional condition', pastSurgeries: 'Fictional surgery', currentMedications: 'Fictional medication' } }
+  const patient = { name: 'Fictional [Patient]', dateOfBirth: '2000-02-29', gender: 'prefer_not_to_say', phone: '09000000000', email: 'PATIENT@EXAMPLE.COM', address: 'Fictional address', emergencyContact: { name: 'Fictional Contact', relationship: 'Sibling', phone: '5550100' }, medicalHistory: { allergies: 'Fictional allergy', conditions: 'Fictional condition', pastSurgeries: 'Fictional surgery', currentMedications: 'Fictional medication' } }
   assert.equal((await call('/patients', 'POST', { ...patient, dateOfBirth: '2001-02-29' })).status, 400)
   assert.equal((await call('/patients', 'POST', { ...patient, patientId: 'injected' })).status, 400)
   assert.equal((await call('/patients?q[$ne]=x')).status, 400)
@@ -103,7 +103,7 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   assert.equal((await (await call('/patients?page=999')).json()).pagination.page, 2, 'out-of-range pages recover to the last page')
   assert.equal((await call('/patients?limit=100')).status, 400)
 
-  const doctorData = { name: 'Fictional Doctor', specialty: 'Family medicine', phone: '555-0101', email: 'DOCTOR@EXAMPLE.COM' }
+  const doctorData = { name: 'Fictional Doctor', specialty: 'Family medicine', phone: '5550101', email: 'DOCTOR@EXAMPLE.COM' }
   assert.equal((await call('/doctors', 'POST', { ...doctorData, specialty: '' })).status, 400)
   assert.equal((await call('/doctors', 'POST', { ...doctorData, userId: id })).status, 400)
   const doctorResponse = await call('/doctors', 'POST', doctorData)

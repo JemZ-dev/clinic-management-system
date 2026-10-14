@@ -14,13 +14,14 @@ function PhoneForm({ workflow, onSave }) {
 }
 
 describe.each([false, true])('phone field in workflow=%s', (workflow) => {
-  it('blocks invalid digit counts and formatting, accepts landlines and mobiles, and keeps blanks optional', async () => {
+  it('limits typing and paste to 11 digits, accepts landlines and mobiles, and keeps blanks optional', async () => {
     const onSave = vi.fn(), user = userEvent.setup()
     render(<PhoneForm workflow={workflow} onSave={onSave} />)
     const input = screen.getByRole('textbox')
-    expect(input.maxLength).toBe(30)
+    expect(input.maxLength).toBe(11)
     expect(input.type).toBe('tel')
-    for (const value of ['123456', '1234567890123456', '0917+1234567', '(02 81234567']) {
+    expect(input.inputMode).toBe('numeric')
+    for (const value of ['123', '123456']) {
       await user.clear(input); await user.type(input, value)
       await user.click(screen.getByRole('button', { name: 'Save' }))
       expect(input.validity.valid).toBe(false)
@@ -28,7 +29,7 @@ describe.each([false, true])('phone field in workflow=%s', (workflow) => {
       expect(input.value).toBe(value)
     }
     expect(onSave).not.toHaveBeenCalled()
-    for (const value of ['(02) 8123-4567', '09171234567', '+63 917 123 4567', '']) {
+    for (const value of ['5550100', '0281234567', '09171234567', '']) {
       await user.clear(input)
       if (value) await user.type(input, value)
       await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -36,5 +37,13 @@ describe.each([false, true])('phone field in workflow=%s', (workflow) => {
       expect(onSave).toHaveBeenLastCalledWith(value)
     }
     expect(onSave).toHaveBeenCalledTimes(4)
+    await user.type(input, '000123456789999')
+    expect(input.value).toBe('00012345678')
+    await user.clear(input)
+    await user.paste('091712345678999')
+    expect(input.value).toBe('09171234567')
+    await user.clear(input)
+    await user.type(input, 'abc09-17')
+    expect(input.value).toBe('0917')
   })
 })

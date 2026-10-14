@@ -17,7 +17,7 @@ export function Field({ label, value, onChange, options, multiline, help, error,
   const id = useId()
   if (props.type === 'tel') {
     return <Form.Group controlId={id} className="workflow-field"><Form.Label>{label}{props.required && <span className="required-marker"> *</span>}</Form.Label>
-      <PhoneInput {...props} id={id} value={value ?? ''} error={error} help={help} onChange={(event) => onChange(event.target.value)} />
+      <PhoneInput {...props} id={id} value={value ?? ''} error={error} help={help} onChange={onChange} />
     </Form.Group>
   }
   return <Form.Group controlId={id} className="workflow-field"><Form.Label>{label}{props.required && <span className="required-marker"> *</span>}</Form.Label>
