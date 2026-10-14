@@ -14,6 +14,7 @@ import { api, apiError } from '../../../lib/api.js'
 import { appointmentFields, clinicToday } from '../../../lib/clinicTime.js'
 import RecordPicker from '../components/RecordPicker.jsx'
 import NewPatientDialog from '../components/NewPatientDialog.jsx'
+import DoctorSchedulePanel from '../components/DoctorSchedulePanel.jsx'
 
 function AppointmentForm({ record }) {
   const location = useLocation()
@@ -26,6 +27,7 @@ function AppointmentForm({ record }) {
   const [addingPatient, setAddingPatient] = useState(false)
   const [savingPatient, setSavingPatient] = useState(false)
   const [patientNotice, setPatientNotice] = useState('')
+  const [viewingSchedule, setViewingSchedule] = useState(false)
   const [error, setError] = useState('')
   const [errors, setErrors] = useState({})
   const [conflict, setConflict] = useState(false)
@@ -35,7 +37,7 @@ function AppointmentForm({ record }) {
   const dirty = JSON.stringify(values) !== JSON.stringify(initial)
   function change(field, value) { setValues((previous) => ({ ...previous, [field]: value })); setErrors((previous) => ({ ...previous, [field]: '' })) }
   async function save(event) {
-    if (addingPatient || busy) { event.preventDefault(); return }
+    if (addingPatient || viewingSchedule || busy) { event.preventDefault(); return }
     event.preventDefault(); setBusy(true); setError(''); setErrors({}); setConflict(false)
     try {
       const response = record ? await api.patch(`/appointments/${record.id}`, { ...values, durationMinutes: Number(values.durationMinutes), version: record.version }) : await api.post('/appointments', { ...values, durationMinutes: Number(values.durationMinutes), ...(location.state?.encounterId ? { followUpEncounterId: location.state.encounterId } : {}) })
@@ -49,6 +51,11 @@ function AppointmentForm({ record }) {
   }
   return <>
     <UnsavedChanges dirty={dirty || addingPatient} busy={busy || savingPatient} guard={guard} />
+    {viewingSchedule && doctor && <DoctorSchedulePanel key={doctor.id} doctor={doctor} date={values.date} time={values.time} durationMinutes={Number(values.durationMinutes)} excludeId={record?.id} onClose={() => setViewingSchedule(false)} onUse={(date, time) => {
+      setValues((previous) => ({ ...previous, date, time }))
+      setErrors((previous) => ({ ...previous, date: '', time: '' }))
+      setViewingSchedule(false)
+    }} />}
     {addingPatient && <NewPatientDialog onBusyChange={setSavingPatient} onClose={() => {
       setAddingPatient(false)
       requestAnimationFrame(() => document.getElementById('appointment-patients-select')?.focus())
@@ -64,7 +71,7 @@ function AppointmentForm({ record }) {
           <div><RecordPicker kind="patients" label="Patient" value={values.patientId} selected={patient} error={errors.patientId} onChange={(value, selected) => { change('patientId', value); setPatient(selected); setPatientNotice('') }} />
             {!record && !location.state?.encounterId && <Button type="button" className="mt-2" variant="outline-secondary" onClick={() => setAddingPatient(true)}>New patient</Button>}
           </div>
-          <RecordPicker kind="doctors" label="Doctor" value={values.doctorId} selected={doctor} error={errors.doctorId} onChange={(value, selected) => { change('doctorId', value); setDoctor(selected) }} />
+          <div><RecordPicker kind="doctors" label="Doctor" value={values.doctorId} selected={doctor} error={errors.doctorId} onChange={(value, selected) => { change('doctorId', value); setDoctor(selected) }} /><Button type="button" variant="outline-secondary" className="mt-2" disabled={!doctor || !values.doctorId || busy} onClick={() => setViewingSchedule(true)}>View doctor’s schedule</Button></div>
         </div>{patientNotice && <Alert variant="success" role="status" className="mt-3 mb-0">{patientNotice}</Alert>}</section>
         <section className="workspace-section" aria-labelledby="appointment-time-title"><h2 id="appointment-time-title">Schedule</h2><AvailableSlots doctorId={values.doctorId} date={values.date} durationMinutes={Number(values.durationMinutes)} excludeId={record?.id} onSelect={(time) => change('time', time)} /><div className="record-form-grid">
           <RecordField name="date" label="Date" value={values.date} onChange={change} errors={errors} required type="date" min={clinicToday()} />

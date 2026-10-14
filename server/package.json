@@ -10,7 +10,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "check:db": "node scripts/check-db.js",
-    "test": "node --test tests/health.test.js tests/password.test.js tests/phone.test.js tests/records.test.js tests/appointments.test.js tests/visits.test.js tests/inventory.test.js tests/workflow.test.js",
+    "test": "node --test tests/billing.test.js tests/health.test.js tests/password.test.js tests/phone.test.js tests/records.test.js tests/appointments.test.js tests/visits.test.js tests/inventory.test.js tests/workflow.test.js",
     "test:integration": "node --test --test-concurrency=1 integration/auth.test.js integration/records.test.js integration/appointments.test.js integration/visits.test.js integration/inventory.test.js integration/workflow.test.js",
     "setup:admin": "node scripts/setup-admin.js",
     "test:workflow": "node --test integration/workflow.test.js"

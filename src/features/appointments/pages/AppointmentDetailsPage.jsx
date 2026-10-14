@@ -7,6 +7,7 @@ import Form from 'react-bootstrap/Form'
 import Modal from 'react-bootstrap/Modal'
 import { ArrowLeft, Pencil } from 'lucide-react'
 import AsyncState from '../../../components/ui/AsyncState.jsx'
+import ArchivedLabel from '../../../components/ui/ArchivedLabel.jsx'
 import useApiResource from '../../../hooks/useApiResource.js'
 import { api, apiError } from '../../../lib/api.js'
 import { formatClinicDate, formatClinicTime, formatClinicTimeRange } from '../../../lib/clinicTime.js'
@@ -37,8 +38,8 @@ function AppointmentDetails({ record, reload, refreshing }) {
     {(notice || location.state?.notice) && <Alert variant="success" role="status">{notice || location.state.notice}</Alert>}
     {refreshing && <p className="record-meta" role="status">Refreshing appointment details…</p>}
     <section className="workspace-section" aria-labelledby="appointment-details-title"><div className="section-heading"><h2 id="appointment-details-title">Booking</h2><AppointmentStatus status={record.status} /></div><dl className="record-details">
-      <div><dt>Patient</dt><dd>{record.patient ? <Link to={`/patients/${record.patient.id}`}>{record.patient.name}</Link> : 'Patient unavailable'}<span className="record-meta">{record.patient?.patientId}{record.patient?.archivedAt && ' · Archived'}</span></dd></div>
-      <div><dt>Doctor</dt><dd>{record.doctor ? <Link to={`/doctors/${record.doctor.id}`}>{record.doctor.name}</Link> : 'Doctor unavailable'}<span className="record-meta">{record.doctor?.specialty}{record.doctor?.archivedAt && ' · Archived'}</span></dd></div>
+      <div><dt>Patient</dt><dd>{record.patient ? <Link to={`/patients/${record.patient.id}`}>{record.patient.name}</Link> : 'Patient unavailable'}<span className="record-meta">{record.patient?.patientId}{record.patient?.archivedAt && <> · <ArchivedLabel /></>}</span></dd></div>
+      <div><dt>Doctor</dt><dd>{record.doctor ? <Link to={`/doctors/${record.doctor.id}`}>{record.doctor.name}</Link> : 'Doctor unavailable'}<span className="record-meta">{record.doctor?.specialty}{record.doctor?.archivedAt && <> · <ArchivedLabel /></>}</span></dd></div>
       <div><dt>Date</dt><dd>{formatClinicDate(record.startsAt)}</dd></div><div><dt>Time (Manila)</dt><dd>{formatClinicTimeRange(record.startsAt, record.endsAt)}<span className="record-meta">{(new Date(record.endsAt) - new Date(record.startsAt)) / 60000} minutes</span></dd></div>
       <div className="detail-full-width"><dt>Reason for appointment</dt><dd>{record.reason || 'Not recorded'}</dd></div>
     </dl></section>

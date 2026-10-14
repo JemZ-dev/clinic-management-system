@@ -1,9 +1,11 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import { z } from 'zod'
 import { authenticate } from '../middleware/authenticate.js'
 import { requireStaff } from '../middleware/requireStaff.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
+import { Appointment } from '../models/Appointment.js'
 import { validate } from '../validators/auth.js'
 import { patientSchema, doctorSchema, patientUpdateSchema, doctorUpdateSchema, recordIdSchema, listSchema, versionSchema } from '../validators/records.js'
 import { assignedPatients } from '../middleware/permissions.js'
@@ -65,13 +67,21 @@ export function recordRoutes(authService, kind) {
     const { version, ...data } = validate(mode === 'edit' ? updateSchema : versionSchema, request.body)
     const active = mode !== 'restore'
     const changes = mode === 'edit' ? data : { archivedAt: active ? new Date() : null }
-    const record = await Model.findOneAndUpdate({
-      _id: request.params.id, __v: version, archivedAt: active ? null : { $ne: null },
-    }, { $set: { ...changes, updatedBy: request.auth.user.id }, $inc: { __v: 1 } }, { returnDocument: 'after', runValidators: true })
-    if (record) return publicRecord(record)
-    const existing = await getRecord(request.params.id)
-    if (mode === 'edit' && existing.archivedAt) throw new HttpError(409, 'Restore this archived record before editing it.')
-    throw new HttpError(409, 'This record changed since you opened it. Reload the latest record before trying again.')
+    async function save(session = null) {
+      if (patient && mode === 'archive' && await Appointment.exists({ patientId: request.params.id, status: 'scheduled' }).session(session)) {
+        throw new HttpError(409, 'This patient has scheduled appointments and cannot be archived. Cancel or resolve those appointments first.', { appointments: 'Scheduled appointments must be resolved before archiving.' })
+      }
+      const record = await Model.findOneAndUpdate({
+        _id: request.params.id, __v: version, archivedAt: active ? null : { $ne: null },
+      }, { $set: { ...changes, updatedBy: request.auth.user.id }, $inc: { __v: 1 } }, { session, returnDocument: 'after', runValidators: true })
+      if (record) return publicRecord(record)
+      const existing = await getRecord(request.params.id)
+      if (mode === 'edit' && existing.archivedAt) throw new HttpError(409, 'Restore this archived record before editing it.')
+      throw new HttpError(409, 'This record changed since you opened it. Reload the latest record before trying again.')
+    }
+    // Booking also writes the patient in its transaction, so a concurrent booking
+    // cannot slip between the appointment check and the archive update.
+    return patient && mode === 'archive' ? mongoose.connection.transaction(save) : save()
   }
   router.patch('/:id', async (request, response) => response.json({ record: await mutate(request, 'edit') }))
   router.delete('/:id', async (request, response) => response.json({ record: await mutate(request, 'archive') }))

@@ -46,6 +46,31 @@ async function fillBooking(user) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('appointment and dashboard components', () => {
+  it('lets reception view a doctor’s schedule and apply a time without losing booking details', async () => {
+    const get = installGet()
+    const fallback = get.getMockImplementation()
+    get.mockImplementation((path) => {
+      if (path.startsWith('/operations/schedules/')) return Promise.resolve({ data: { record: { weekly: Array.from({ length: 7 }, (_, day) => ({ day, start: '09:00', end: '17:00' })), leave: [] } } })
+      if (path.startsWith('/operations/slots/')) return Promise.resolve({ data: { configured: true, slots: ['09:17'] } })
+      return fallback(path)
+    })
+    const post = vi.spyOn(api, 'post')
+    const { user } = mount('/appointments/new')
+    expect(screen.getByRole('button', { name: 'View doctor’s schedule' }).disabled).toBe(true)
+    await fillBooking(user)
+    await user.type(screen.getByLabelText(/Reason for appointment/), 'Fictional follow-up')
+    await user.click(screen.getByRole('button', { name: 'View doctor’s schedule' }))
+    await screen.findByRole('dialog', { name: 'Doctor’s schedule' })
+    await user.selectOptions(await screen.findByLabelText('Available time'), '09:17')
+    await user.click(screen.getByRole('button', { name: 'Use this date and time' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Doctor’s schedule' })).toBeNull())
+    expect(screen.getByLabelText(/Start time/).value).toBe('09:17')
+    expect(screen.getByLabelText(/^Date/).value).toBe(tomorrow)
+    expect(screen.getByRole('combobox', { name: /^Patient/ }).value).toBe(patient.id)
+    expect(screen.getByRole('combobox', { name: /^Doctor/ }).value).toBe(doctor.id)
+    expect(screen.getByLabelText(/Reason for appointment/).value).toBe('Fictional follow-up')
+    expect(post).not.toHaveBeenCalled()
+  })
   it('books an arbitrary start minute and chosen duration, refreshing availability for that duration', async () => {
     const get = installGet()
     const fallback = get.getMockImplementation()

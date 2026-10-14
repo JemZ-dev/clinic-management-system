@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 
 const schema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, maxlength: 100 },
-  specialty: { type: String, required: true, trim: true, maxlength: 100 },
+  specialty: { type: String, required: true, trim: true, maxlength: 100, set: (value) => typeof value === 'string' ? value.trim().replace(/^./u, (first) => first.toUpperCase()) : value },
   phone: { type: String, trim: true, maxlength: 30, default: '' },
   email: { type: String, trim: true, maxlength: 254, default: '' },
   archivedAt: { type: Date, default: null },

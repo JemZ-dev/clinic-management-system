@@ -171,6 +171,25 @@ describe('patient and doctor workflows', () => {
     expect(screen.getByRole('heading', { name: 'No matching records' })).toBeTruthy()
   })
 
+  it('explains why scheduled appointments block archiving and links to those appointments', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue(detail())
+    const message = 'This patient has scheduled appointments and cannot be archived. Cancel or resolve those appointments first.'
+    const remove = vi.spyOn(api, 'delete').mockRejectedValue({ response: { status: 409, data: { message, fields: { appointments: 'Scheduled appointments must be resolved before archiving.' } } } })
+    const { user } = mount(`/patients/${id}`)
+    await screen.findByRole('heading', { name: 'Fictional Patient', level: 1 })
+    await user.click(screen.getByRole('button', { name: 'Archive', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Archive record' }))
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining(message))
+    expect(screen.getByRole('link', { name: 'View scheduled appointments' }).getAttribute('href')).toBe(`/appointments?patientId=${id}&status=scheduled&date=`)
+    expect(screen.getByRole('button', { name: 'Archive record' }).disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Reload record' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Restore', exact: true })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByRole('button', { name: 'Archive', exact: true })).toBeTruthy()
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+
   it('archives only after confirmation and preserves history on the refreshed page', async () => {
     const withHistory = { ...record, medicalHistory: { ...record.medicalHistory, allergies: 'Fictional allergy' } }
     let detailReads = 0

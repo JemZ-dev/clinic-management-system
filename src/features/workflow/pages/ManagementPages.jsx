@@ -1,11 +1,12 @@
+import WeeklyScheduleCalendar from '../components/WeeklyScheduleCalendar.jsx'
 import EmployeeInvitations, { InvitationResult } from '../components/EmployeeInvitations.jsx'
 import useConfirmDialog from '../../../hooks/useConfirmDialog.jsx'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+import PaginationControls from '../../../components/ui/PaginationControls.jsx'
 import Button from 'react-bootstrap/Button'
 import Table from 'react-bootstrap/Table'
 import Form from 'react-bootstrap/Form'
-import { Trash2 } from 'lucide-react'
 import { useAuth } from '../../../hooks/useAuth.js'
 import { can, ROLE_LABELS, EXTRA_PERMISSIONS } from '../../../../shared/permissions.js'
 import useApiResource from '../../../hooks/useApiResource.js'
@@ -77,10 +78,8 @@ export function AccountsPage() {
   </>
 }
 function ScheduleEditor({ doctor, record, reload }) {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   return <WorkflowForm initial={{ weekly: record?.weekly || [], leave: record?.leave || [] }} submitLabel="Save schedule" onSave={async (values) => { await api.put(`/operations/schedules/${doctor.id}`, { ...values, ...(record ? { version: record.version } : {}) }); reload() }}>{({ values, change }) => {
-    const availableDay = [1, 2, 3, 4, 5, 6, 0].find((day) => !values.weekly.some((period) => period.day === day))
-    return <><h2>{doctor.name}</h2><p className="section-description">All times are in Manila time. Days already added are unavailable in other rows. Bookings require configured hours; existing conflicting bookings must be rescheduled first.</p>{values.weekly.map((period, index) => <div className="workflow-schedule-row" key={index}><Field label="Day" value={String(period.day)} onChange={(value) => change('weekly', values.weekly.map((item, i) => i === index ? { ...item, day: Number(value) } : item))} options={days.map((label, value) => ({ value, label, disabled: value !== period.day && values.weekly.some((item) => item.day === value) }))} />{['start', 'end'].map((key) => <Field key={key} label={key === 'start' ? 'Start' : 'End'} required type="time" step="60" value={period[key]} onChange={(value) => change('weekly', values.weekly.map((item, i) => i === index ? { ...item, [key]: value } : item))} />)}<Button type="button" variant="link" className="schedule-remove-button" aria-label={`Remove ${days[period.day]} working period ${period.start} to ${period.end}`} title="Remove period" onClick={() => change('weekly', values.weekly.filter((_, i) => i !== index))}><Trash2 size={18} aria-hidden="true" /></Button></div>)}<Button type="button" variant="outline-secondary" disabled={availableDay === undefined} onClick={() => { if (availableDay !== undefined) change('weekly', [...values.weekly, { day: availableDay, start: '09:00', end: '12:00' }]) }}>Add working period</Button><h3 className="mt-4">Leave / unavailable dates</h3>{values.leave.map((leave, index) => <div className="workflow-schedule-row" key={index}>{['from', 'through'].map((key) => <Field key={key} label={key === 'from' ? 'From' : 'Through'} required type="date" value={leave[key]} onChange={(value) => change('leave', values.leave.map((item, i) => i === index ? { ...item, [key]: value } : item))} />)}<Field label="Reason" required maxLength={160} value={leave.reason} onChange={(value) => change('leave', values.leave.map((item, i) => i === index ? { ...item, reason: value } : item))} /><Button variant="link" onClick={() => change('leave', values.leave.filter((_, i) => i !== index))}>Remove leave</Button></div>)}<Button variant="outline-secondary" onClick={() => change('leave', [...values.leave, { from: '', through: '', reason: '' }])}>Add leave</Button></>
+    return <><h2>{doctor.name}</h2><p className="section-description">All times are in Manila time. Bookings require configured hours; existing conflicting bookings must be rescheduled first.</p><WeeklyScheduleCalendar weekly={values.weekly} onChange={(weekly) => change('weekly', weekly)} /><h3 className="mt-4">Leave / unavailable dates</h3>{values.leave.map((leave, index) => <div className="workflow-schedule-row" key={index}>{['from', 'through'].map((key) => <Field key={key} label={key === 'from' ? 'From' : 'Through'} required type="date" value={leave[key]} onChange={(value) => change('leave', values.leave.map((item, i) => i === index ? { ...item, [key]: value } : item))} />)}<Field label="Reason" required maxLength={160} value={leave.reason} onChange={(value) => change('leave', values.leave.map((item, i) => i === index ? { ...item, reason: value } : item))} /><Button variant="link" onClick={() => change('leave', values.leave.filter((_, i) => i !== index))}>Remove leave</Button></div>)}<Button variant="outline-secondary" onClick={() => change('leave', [...values.leave, { from: '', through: '', reason: '' }])}>Add leave</Button></>
   }}</WorkflowForm>
 }
 function DoctorSchedule({ doctor }) {
@@ -94,11 +93,25 @@ export function SchedulesPage() {
 }
 export function DiagnosticsPage() { return <><header className="page-heading"><div><h1>Diagnostics</h1><p>Manage requested tests, reports, and outstanding reviews. Latest 200 requests.</p></div></header><section className="workspace-section"><OrdersPanel /></section></> }
 export function BillingPage() {
-  const resource = useApiResource('/billing')
+  const [params, setParams] = useSearchParams()
+  const q = params.get('q') || '', status = params.get('status') || 'all', from = params.get('from') || '', through = params.get('through') || ''
+  const page = params.get('page') || '1', limit = params.get('limit') || '10'
+  const query = new URLSearchParams({ q, status, from, through, page, limit })
+  const resource = useApiResource(`/billing?${query}`)
+  function filter(updates) { const next = new URLSearchParams(params); next.set('page', '1'); Object.entries(updates).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key)); setParams(next, { replace: true }) }
+  const invalidRange = from && through && from > through
+  const filtered = q || status !== 'all' || from || through
   return <>
-    <header className="page-heading"><div><h1>Billing</h1><p>Itemized clinic charges and payment history. Latest 200 bills.</p></div></header>
+    <header className="page-heading"><div><h1>Billing</h1><p>Find clinic bills by patient, payment status, and encounter date. Dates use Manila time.</p></div></header>
     <section className="directory-panel" aria-label="Billing directory">
-      <WorkflowResource resource={resource}>{({ records }) => <>
+      <div className="directory-toolbar billing-filters">
+        <DirectorySearch id="billing-search" label="Search patient name or patient ID" initialValue={q} onSearch={(q) => filter({ q })} loading={resource.loading} />
+        <Form.Group controlId="billing-status"><Form.Label>Payment status</Form.Label><Form.Select value={status} onChange={(event) => filter({ status: event.target.value })}>{[['all', 'All statuses'], ['unpaid', 'Unpaid'], ['partially_paid', 'Partially paid'], ['paid', 'Paid'], ['no_charges', 'No charges']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Form.Select></Form.Group>
+        <Form.Group controlId="billing-from"><Form.Label>Encounter from</Form.Label><Form.Control type="date" value={from} max={through || undefined} onChange={(event) => filter({ from: event.target.value })} /></Form.Group>
+        <Form.Group controlId="billing-through"><Form.Label>Encounter through</Form.Label><Form.Control type="date" value={through} min={from || undefined} isInvalid={!!invalidRange} onChange={(event) => filter({ through: event.target.value })} /><Form.Control.Feedback type="invalid">End date must be on or after the start date.</Form.Control.Feedback></Form.Group>
+        <Button variant="outline-secondary" onClick={() => setParams({}, { replace: true })}>Clear filters</Button>
+      </div>
+      <WorkflowResource resource={resource}>{({ records, pagination = { page: 1, pages: 1, total: records.length, limit: 10 } }) => <>
         {records.length ? <div className="table-scroll" role="region" aria-label="Billing table, scroll horizontally for all columns" tabIndex={0}>
           <Table className="directory-table billing-table">
             <caption className="visually-hidden">Clinic bills, payments, and outstanding balances. Encounter times are in Manila time.</caption>
@@ -108,12 +121,12 @@ export function BillingPage() {
               <td className="numeric-cell">{money(record.totalCentavos)}</td>
               <td className="numeric-cell">{money(record.paidCentavos)}</td>
               <td className="numeric-cell">{money(record.balanceCentavos)}</td>
-              <td><span className={`record-status${!record.lines.length ? ' archived' : record.status === 'paid' ? '' : ' billing-outstanding'}`}>{record.lines.length ? record.status.replaceAll('_', ' ') : 'No charges'}</span></td>
+              <td><span className={`record-status${!record.lines.length ? ' archived' : record.status === 'paid' ? '' : ' billing-outstanding'}`}>{record.billingStatus === 'no_charges' || !record.lines.length ? 'No charges' : record.status.replaceAll('_', ' ')}</span></td>
               <td><Link className="inline-action" to={`/queue/${record.encounterId?._id}?tab=billing`} aria-label={`Open bill for ${record.encounterId?.patientName || 'unavailable patient'}`}>Open bill</Link></td>
             </tr>)}</tbody>
           </Table>
-        </div> : <div className="directory-empty" role="status"><h2>No billing records yet</h2><p>Register a patient’s arrival to open their encounter and bill.</p></div>}
-        <div className="directory-pagination"><p role="status">{records.length} billing {records.length === 1 ? 'record' : 'records'}</p></div>
+        </div> : <div className="directory-empty" role="status"><h2>{filtered ? 'No matching bills' : 'No billing records yet'}</h2><p>{filtered ? 'Change or clear the filters to see other bills.' : 'Register a patient’s arrival to open their encounter and bill.'}</p></div>}
+        <div className="directory-pagination"><p role="status">{pagination.total} billing {pagination.total === 1 ? 'record' : 'records'}</p><Form.Group controlId="billing-page-size" className="page-size"><Form.Label>Per page</Form.Label><Form.Select value={limit} onChange={(event) => filter({ limit: event.target.value })}><option>10</option><option>25</option><option>50</option></Form.Select></Form.Group><PaginationControls page={pagination.page} pages={pagination.pages} label="Billing pages" onPageChange={(page) => filter({ page: String(page) })} /></div>
       </>}</WorkflowResource>
     </section>
   </>

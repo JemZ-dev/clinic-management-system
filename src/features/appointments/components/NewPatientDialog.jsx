@@ -58,14 +58,14 @@ export default function NewPatientDialog({ onSaved, onClose, onBusyChange }) {
     } finally { setBusy(false); onBusyChange(false) }
   }
   const field = (name, label, props = {}) => <RecordField name={name} label={label} value={values[name]} onChange={change} errors={errors} {...props} />
-  return <>{dialog}<Modal show onHide={close} backdrop="static" keyboard={!busy} enforceFocus={!confirming} centered scrollable aria-labelledby={`${id}-title`}>
+  return <>{dialog}<Modal show onHide={close} backdrop="static" keyboard={!busy} enforceFocus={!confirming} centered scrollable dialogClassName="new-patient-modal" aria-labelledby={`${id}-title`}>
     <Modal.Header closeButton={!busy}><Modal.Title id={`${id}-title`}>New patient</Modal.Title></Modal.Header>
     <Modal.Body>
-      <p>Save their basic details, then continue booking. You can add other patient information later.</p>
+      <p className="section-description">Add the patient’s basic details, then continue booking.</p>
       <Form id={`${id}-form`} onSubmit={save}>
         {error && <Alert variant="danger" role="alert" tabIndex={-1} ref={errorRef}>{error}</Alert>}
         <fieldset disabled={busy}>
-          <div className="record-form-grid">
+          <div className="new-patient-fields">
             {field('name', 'Full name', { required: true, minLength: 2, maxLength: 100, autoFocus: true })}
             {field('dateOfBirth', 'Birth date', { required: true, type: 'date', min: '1900-01-01', max: clinicToday() })}
             <Form.Group controlId={`${id}-gender`}>

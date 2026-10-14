@@ -11,6 +11,7 @@ import { recordIdSchema as id } from '../validators/records.js'
 import { encounterInput, assessmentInput, draftInput, actionInput, version, paymentInput, chargeInput } from '../validators/workflow.js'
 import { actor, checkVersion, conflict, saveVersion, plain, getEncounter, publicEncounter, createEncounter, assessEncounter, encounterAction, saveDraft, finalizeEncounter, invoiceTotals } from '../services/workflow.js'
 import { HttpError } from '../utils/errors.js'
+import { billingListSchema, listBills } from '../services/billingDirectory.js'
 
 export function encounterRoutes(authService) {
   const router = Router()
@@ -103,9 +104,6 @@ export function encounterRoutes(authService) {
 export function billingRoutes(authService) {
   const router = Router()
   router.use(authenticate(authService), requirePermission('billing'))
-  router.get('/', async (_request, response) => {
-    const records = await Invoice.find().populate('encounterId', 'patientName patientNumber arrivedAt').sort({ updatedAt: -1 }).limit(200)
-    response.json({ records: records.map((item) => ({ ...plain(item), ...invoiceTotals(item) })) })
-  })
+  router.get('/', async (request, response) => response.json(await listBills(validate(billingListSchema, request.query))))
   return router
 }

@@ -52,6 +52,11 @@ async function bookingDetails(data, now) {
   return { patientId: data.patientId, doctorId: data.doctorId, startsAt, endsAt: new Date(startsAt.valueOf() + (data.durationMinutes ?? 30) * 60000), reason: data.reason }
 }
 
+async function reservePatient(patientId, session) {
+  const patient = await Patient.findOneAndUpdate({ _id: patientId, archivedAt: null }, { $inc: { __v: 1 } }, { session })
+  if (!patient) throw new HttpError(400, 'Please check the selected patient.', { patientId: 'Choose an active patient.' })
+}
+
 // Called after reserving the doctor's schedule in the same transaction. That
 // shared write serializes bookings, including ones with different start times.
 export async function assertNoBookingOverlap(details, session, excludeId) {
@@ -75,6 +80,7 @@ export async function createAppointment(data, userId, now = new Date()) {
   try {
     let appointment
     await mongoose.connection.transaction(async (session) => {
+      await reservePatient(data.patientId, session)
       await reserveSchedule(data.doctorId, data.date, data.time, session, data.durationMinutes ?? 30)
       await assertNoBookingOverlap(details, session)
       ;[appointment] = await Appointment.create([{ ...details, status: 'scheduled', createdBy: userId, updatedBy: userId, statusHistory: [{ status: 'scheduled', at: now, by: userId }] }], { session })
@@ -95,6 +101,7 @@ export async function updateAppointment(id, data, userId, now = new Date()) {
   const details = await bookingDetails(data, now)
   try {
     await mongoose.connection.transaction(async (session) => {
+      await reservePatient(data.patientId, session)
       await reserveSchedule(data.doctorId, data.date, data.time, session, data.durationMinutes ?? 30)
       await assertNoBookingOverlap(details, session, id)
       const result = await Appointment.findOneAndUpdate({ _id: id, __v: data.version, status: 'scheduled' }, {

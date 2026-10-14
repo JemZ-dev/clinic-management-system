@@ -12,6 +12,8 @@ import { User } from '../src/models/User.js'
 import { Session } from '../src/models/Session.js'
 import { Patient } from '../src/models/Patient.js'
 import { Doctor } from '../src/models/Doctor.js'
+import { Appointment } from '../src/models/Appointment.js'
+import { scheduleFixture } from './fixtures.js'
 
 test('staff patient and doctor CRUD preserves history and rejects conflicting changes', async (t) => {
   loadLocalEnvironment()
@@ -26,7 +28,7 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   })
   await connectDatabase({ ...getConfig(), dbName })
   connected = true
-  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init()])
+  await Promise.all([User.init(), Session.init(), Patient.init(), Doctor.init(), Appointment.init()])
   await inviteFixture('records@example.com', config.registrationCode, 'admin', [])
   server = createApp({ pingDatabase, config, authService: createAuthService(config) }).listen(0, '127.0.0.1')
   await once(server, 'listening')
@@ -103,20 +105,80 @@ test('staff patient and doctor CRUD preserves history and rejects conflicting ch
   assert.equal((await (await call('/patients?page=999')).json()).pagination.page, 2, 'out-of-range pages recover to the last page')
   assert.equal((await call('/patients?limit=100')).status, 400)
 
-  const doctorData = { name: 'Fictional Doctor', specialty: 'Family medicine', phone: '5550101', email: 'DOCTOR@EXAMPLE.COM' }
+  const doctorData = { name: 'Fictional Doctor', specialty: '  family medicine  ', phone: '5550101', email: 'DOCTOR@EXAMPLE.COM' }
   assert.equal((await call('/doctors', 'POST', { ...doctorData, specialty: '' })).status, 400)
   assert.equal((await call('/doctors', 'POST', { ...doctorData, userId: id })).status, 400)
   const doctorResponse = await call('/doctors', 'POST', doctorData)
   assert.equal(doctorResponse.status, 201)
   let doctor = (await doctorResponse.json()).record
+  assert.equal(doctor.specialty, 'Family medicine', 'creating a doctor trims the specialty and capitalizes only its first letter')
+  assert.equal((await Doctor.findById(doctor.id)).specialty, 'Family medicine')
   assert.equal((await (await call('/doctors?q=Family')).json()).pagination.total, 1)
-  const updateDoctor = await call(`/doctors/${doctor.id}`, 'PATCH', { ...doctorData, specialty: 'Internal medicine', version: 0 })
+  const updateDoctor = await call(`/doctors/${doctor.id}`, 'PATCH', { ...doctorData, specialty: 'internal medicine', version: 0 })
   assert.equal(updateDoctor.status, 200)
   doctor = (await updateDoctor.json()).record
+  assert.equal(doctor.specialty, 'Internal medicine', 'editing a doctor returns the normalized stored specialty to either client')
   assert.equal((await Doctor.findById(doctor.id)).specialty, 'Internal medicine')
   assert.equal((await call(`/doctors/${doctor.id}`, 'PATCH', { ...doctorData, version: 0 })).status, 409)
   assert.equal((await call(`/doctors/${doctor.id}`, 'DELETE', { version: 1 })).status, 200)
   assert.equal((await (await call('/doctors')).json()).pagination.total, 0)
   assert.equal((await call(`/doctors/${doctor.id}/restore`, 'POST', { version: 2 })).status, 200)
   assert.equal(await User.countDocuments(), 1, 'doctor directory entries never create login accounts')
+
+  const userId = (await User.findOne()).id
+  const makePatient = (name) => Patient.create({ ...patient, name, createdBy: userId, updatedBy: userId })
+  const makeAppointment = (patientId, status, startsAt) => Appointment.create({ patientId, doctorId: doctor.id, status, startsAt, endsAt: new Date(startsAt.valueOf() + 1800000), statusHistory: [{ status, at: new Date(), by: userId }], createdBy: userId, updatedBy: userId })
+
+  await t.test('scheduled appointments block archive without changing the patient or their appointments', async () => {
+    const candidate = await makePatient('Fictional Scheduled Patient')
+    const future = await makeAppointment(candidate.id, 'scheduled', new Date(Date.now() + 86400000))
+    const overdue = await makeAppointment(candidate.id, 'scheduled', new Date('2000-01-01T09:00:00+08:00'))
+    const original = candidate.toObject()
+    const blocked = await call(`/patients/${candidate.id}`, 'DELETE', { version: 0 })
+    assert.equal(blocked.status, 409)
+    const error = await blocked.json()
+    assert.match(error.message, /scheduled appointments.*cannot be archived/)
+    assert.ok(error.fields.appointments)
+    assert.deepEqual((await Patient.findById(candidate.id)).toObject(), original, 'rejected archive leaves all patient fields and version unchanged')
+    assert.equal((await Appointment.findById(future.id)).status, 'scheduled')
+    assert.equal((await call(`/appointments/${future.id}/status`, 'PATCH', { status: 'cancelled', version: 0 })).status, 200)
+    assert.equal((await call(`/patients/${candidate.id}`, 'DELETE', { version: 0 })).status, 409, 'an overdue appointment still marked scheduled also blocks archive')
+    assert.equal((await call(`/appointments/${overdue.id}/status`, 'PATCH', { status: 'cancelled', version: 0 })).status, 200)
+    const archived = await call(`/patients/${candidate.id}`, 'DELETE', { version: 0 })
+    assert.equal(archived.status, 200, 'archiving succeeds once every scheduled appointment is resolved')
+    const saved = (await archived.json()).record
+    assert.ok(saved.archivedAt)
+    assert.deepEqual(saved.medicalHistory, patient.medicalHistory)
+    assert.equal(await Appointment.countDocuments({ patientId: candidate.id }), 2, 'appointment history is preserved')
+    assert.equal((await call(`/patients/${candidate.id}/restore`, 'POST', { version: saved.version })).status, 200)
+  })
+
+  await t.test('other patients and appointments with another status do not block archiving', async () => {
+    const other = await makePatient('Fictional Other Scheduled Patient')
+    await makeAppointment(other.id, 'scheduled', new Date(Date.now() + 2 * 86400000))
+    for (const status of ['cancelled', 'completed', 'no_show', 'checked_in']) {
+      const candidate = await makePatient(`Fictional ${status} Patient`)
+      await makeAppointment(candidate.id, status, new Date(Date.now() - (1 + ['cancelled', 'completed', 'no_show', 'checked_in'].indexOf(status)) * 86400000))
+      assert.equal((await call(`/patients/${candidate.id}`, 'DELETE', { version: 0 })).status, 200, status)
+    }
+  })
+
+  await t.test('a simultaneous booking and archive cannot leave a scheduled appointment on an archived patient', async () => {
+    await scheduleFixture([await Doctor.findById(doctor.id)])
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() + 3 * 86400000))
+    for (const time of ['10:00', '11:00', '12:00']) {
+      const candidate = await makePatient(`Fictional Concurrent ${time}`)
+      const [archived, booked] = await Promise.all([
+        call(`/patients/${candidate.id}`, 'DELETE', { version: 0 }),
+        call('/appointments', 'POST', { patientId: candidate.id, doctorId: doctor.id, date, time }),
+      ])
+      assert.ok([200, 409].includes(archived.status))
+      assert.ok([201, 400].includes(booked.status))
+      assert.notEqual(archived.status === 200 && booked.status === 201, true, 'both operations cannot succeed')
+      const saved = await Patient.findById(candidate.id)
+      const scheduled = await Appointment.countDocuments({ patientId: candidate.id, status: 'scheduled' })
+      assert.equal(saved.archivedAt ? scheduled : 0, 0)
+      assert.equal(scheduled, booked.status === 201 ? 1 : 0)
+    }
+  })
 })
