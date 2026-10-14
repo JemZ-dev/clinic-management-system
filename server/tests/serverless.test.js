@@ -68,7 +68,7 @@ test('hosted handler serves API health, secure login cookies, and JSON API error
 
 test('Vercel installs both packages and routes API before the React fallback', async () => {
   const config = JSON.parse(await readFile(new URL('../../vercel.json', import.meta.url)))
-  assert.equal(config.installCommand, 'npm ci && npm ci --prefix server')
+  assert.equal(config.installCommand, 'npm ci --include=dev && npm ci --prefix server --omit=dev')
   assert.equal(config.outputDirectory, 'dist')
   assert.equal(config.functions['api/index.js'].maxDuration, 60)
   assert.deepEqual(config.rewrites.slice(0, 2).map((rule) => rule.destination), ['/api/index', '/api/index'])

@@ -11,6 +11,9 @@ uses `npm run dev:server` or `npm run start:server`.
    root (leave it empty), Framework Preset to Vite, and Node.js to 22.x.
 2. The checked-in `vercel.json` supplies installation of both package folders,
    `npm run build`, output directory `dist`, API routing, and React page fallback.
+   The root install explicitly includes development dependencies so Vite is
+   available even when `NODE_ENV=production`; the backend installs runtime
+   dependencies only. Keep the install command supplied by `vercel.json`.
 3. Add these variables to Vercel's **Production** environment settings:
 
    | Name | Value |
