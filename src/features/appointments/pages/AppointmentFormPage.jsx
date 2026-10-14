@@ -18,7 +18,7 @@ import NewPatientDialog from '../components/NewPatientDialog.jsx'
 function AppointmentForm({ record }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [initial] = useState(() => record ? { patientId: record.patientId || '', doctorId: record.doctorId || '', ...appointmentFields(record.startsAt), reason: record.reason } : { patientId: location.state?.patient?.id || '', doctorId: location.state?.doctor?.id || '', date: location.state?.followUpDate || clinicToday(), time: '', reason: '' })
+  const [initial] = useState(() => record ? { patientId: record.patientId || '', doctorId: record.doctorId || '', ...appointmentFields(record.startsAt), reason: record.reason, durationMinutes: String((new Date(record.endsAt) - new Date(record.startsAt)) / 60000) } : { patientId: location.state?.patient?.id || '', doctorId: location.state?.doctor?.id || '', date: location.state?.followUpDate || clinicToday(), time: '', reason: '', durationMinutes: '30' })
   const [values, setValues] = useState(initial)
   const [patient, setPatient] = useState(record?.patient || location.state?.patient || null)
   const [doctor, setDoctor] = useState(record?.doctor || location.state?.doctor || null)
@@ -38,7 +38,7 @@ function AppointmentForm({ record }) {
     if (addingPatient || busy) { event.preventDefault(); return }
     event.preventDefault(); setBusy(true); setError(''); setErrors({}); setConflict(false)
     try {
-      const response = record ? await api.patch(`/appointments/${record.id}`, { ...values, version: record.version }) : await api.post('/appointments', { ...values, ...(location.state?.encounterId ? { followUpEncounterId: location.state.encounterId } : {}) })
+      const response = record ? await api.patch(`/appointments/${record.id}`, { ...values, durationMinutes: Number(values.durationMinutes), version: record.version }) : await api.post('/appointments', { ...values, durationMinutes: Number(values.durationMinutes), ...(location.state?.encounterId ? { followUpEncounterId: location.state.encounterId } : {}) })
       guard.current = false
       navigate(`/appointments/${response.data.record.id}`, { replace: true, state: { backTo, notice: record ? 'Appointment updated successfully.' : 'Appointment booked successfully.' } })
     } catch (failure) {
@@ -57,7 +57,7 @@ function AppointmentForm({ record }) {
       setPatientNotice('Patient record saved. Complete the appointment details and book below.')
     }} />}
     <Link className="record-back" to={cancelTo} state={{ backTo }}><ArrowLeft size={16} aria-hidden="true" />{record ? 'Back to appointment' : 'Back to appointments'}</Link>
-    <header className="page-heading"><div><h1>{record ? 'Reschedule appointment' : 'Book appointment'}</h1><p>Appointments last 30 minutes. All dates and times use Manila time.</p></div></header>
+    <header className="page-heading"><div><h1>{record ? 'Reschedule appointment' : 'Book appointment'}</h1><p>Choose the start time and duration. All dates and times use Manila time.</p></div></header>
     <Form className="record-form" onSubmit={save}>{error && <Alert variant="danger" role="alert" tabIndex={-1} id="appointment-form-error">{error}{conflict && record && <p className="mb-0 mt-2">Your entries are still here. Open the <Link to={`/appointments/${record.id}`} state={{ backTo }}>latest appointment</Link> before editing again.</p>}</Alert>}
       <fieldset disabled={busy}>
         <section className="workspace-section" aria-labelledby="appointment-people-title"><h2 id="appointment-people-title">Patient and doctor</h2><p className="section-description">Search the active directories, then select a record. Fields marked * are required.</p><div className="record-form-grid">
@@ -66,9 +66,10 @@ function AppointmentForm({ record }) {
           </div>
           <RecordPicker kind="doctors" label="Doctor" value={values.doctorId} selected={doctor} error={errors.doctorId} onChange={(value, selected) => { change('doctorId', value); setDoctor(selected) }} />
         </div>{patientNotice && <Alert variant="success" role="status" className="mt-3 mb-0">{patientNotice}</Alert>}</section>
-        <section className="workspace-section" aria-labelledby="appointment-time-title"><h2 id="appointment-time-title">Schedule</h2><AvailableSlots doctorId={values.doctorId} date={values.date} onSelect={(time) => change('time', time)} /><div className="record-form-grid">
+        <section className="workspace-section" aria-labelledby="appointment-time-title"><h2 id="appointment-time-title">Schedule</h2><AvailableSlots doctorId={values.doctorId} date={values.date} durationMinutes={Number(values.durationMinutes)} excludeId={record?.id} onSelect={(time) => change('time', time)} /><div className="record-form-grid">
           <RecordField name="date" label="Date" value={values.date} onChange={change} errors={errors} required type="date" min={clinicToday()} />
-          <RecordField name="time" label="Start time" value={values.time} onChange={change} errors={errors} required type="time" step={1800} help="Choose a time on the hour or half-hour, such as 09:00 or 09:30." />
+          <RecordField name="time" label="Start time" value={values.time} onChange={change} errors={errors} required type="time" step={60} />
+          <RecordField name="durationMinutes" label="Duration (minutes)" value={values.durationMinutes} onChange={change} errors={errors} required type="number" min={1} max={1440} step={1} help="Allow enough time for the visit. The appointment must fit within working hours." />
           <RecordField name="reason" label="Reason for appointment" value={values.reason} onChange={change} errors={errors} multiline maxLength={500} help="Add a short reason for the visit, if known." />
         </div></section>
         <div className="record-form-actions"><SubmitButton busy={busy}>{record ? 'Save appointment' : 'Book appointment'}</SubmitButton><Button variant="outline-secondary" as={Link} to={cancelTo} state={{ backTo }} onClick={(event) => { if (busy) event.preventDefault() }}>Cancel</Button></div>

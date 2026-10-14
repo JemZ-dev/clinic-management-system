@@ -21,7 +21,7 @@ export function Field({ label, value, onChange, options, multiline, help, error,
     </Form.Group>
   }
   return <Form.Group controlId={id} className="workflow-field"><Form.Label>{label}{props.required && <span className="required-marker"> *</span>}</Form.Label>
-    {options ? <Form.Select {...props} value={value} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined}>{options.map((option) => <option key={option.value ?? option} value={option.value ?? option}>{option.label ?? option}</option>)}</Form.Select> : <Form.Control {...props} as={multiline ? 'textarea' : 'input'} rows={multiline ? 3 : undefined} value={value ?? ''} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined} />}
+    {options ? <Form.Select {...props} value={value} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined}>{options.map((option) => <option key={option.value ?? option} value={option.value ?? option} disabled={option.disabled}>{option.label ?? option}</option>)}</Form.Select> : <Form.Control {...props} as={multiline ? 'textarea' : 'input'} rows={multiline ? 3 : undefined} value={value ?? ''} onChange={(event) => onChange(event.target.value)} isInvalid={!!error} aria-describedby={help || error ? `${id}-help` : undefined} />}
     {(error || help) && <div id={`${id}-help`} className={error ? 'field-error' : 'form-text'}>{error || help}</div>}
   </Form.Group>
 }

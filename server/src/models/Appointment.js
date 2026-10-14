@@ -17,8 +17,8 @@ const schema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true, optimisticConcurrency: true })
-// All bookings have a fixed, aligned 30-minute duration. Equal starts are the only
-// possible overlap; a unique index also protects concurrent creates/reschedules.
+// Equal starts are protected by the index; arbitrary overlapping intervals are
+// checked inside the transaction after locking the doctor's schedule revision.
 schema.index({ doctorId: 1, startsAt: 1 }, {
   name: 'doctor_active_slot', unique: true,
   partialFilterExpression: { status: { $in: ['scheduled', 'checked_in'] } },

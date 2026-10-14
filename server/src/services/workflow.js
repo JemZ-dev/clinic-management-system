@@ -41,18 +41,20 @@ export function publicEncounter(record, user, summary = false) {
   delete item.requestDigest
   return item
 }
-export function scheduleAllows(schedule, date, time) {
+export function scheduleAllows(schedule, date, time, durationMinutes = 30) {
   if (!schedule) return false
   if (schedule.leave.some((leave) => leave.from <= date && leave.through >= date)) return false
   const day = new Date(`${date}T12:00:00+08:00`).getUTCDay()
   const [hour, minute] = time.split(':').map(Number)
-  const end = `${String(Math.floor((hour * 60 + minute + 30) / 60)).padStart(2, '0')}:${String((minute + 30) % 60).padStart(2, '0')}`
+  const endMinutes = hour * 60 + minute + durationMinutes
+  if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || endMinutes >= 1440) return false
+  const end = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`
   return schedule.weekly.some((slot) => slot.day === day && slot.start <= time && slot.end >= end)
 }
 // The schedule write serializes bookings against concurrent changes to hours/leave.
-export async function reserveSchedule(doctorId, date, time, session) {
+export async function reserveSchedule(doctorId, date, time, session, durationMinutes = 30) {
   const schedule = await DoctorSchedule.findOne({ doctorId }).session(session)
-  if (!scheduleAllows(schedule, date, time)) throw new HttpError(400, 'The doctor is unavailable at this time. Ask the administrator to configure working hours or select another slot.', { time: 'Choose an available 30-minute slot.' })
+  if (!scheduleAllows(schedule, date, time, durationMinutes)) throw new HttpError(400, 'The doctor is unavailable for the selected time and duration.', { time: 'The entire appointment must fit within the doctor’s working hours.' })
   await DoctorSchedule.updateOne({ _id: schedule.id }, { $inc: { revision: 1 } }, { session })
 }
 export async function createEncounter(data, user) {
@@ -162,16 +164,19 @@ export function invoiceTotals(invoice) {
   const paidCentavos = invoice.payments.reduce((sum, payment) => sum + (payment.refund ? -payment.amountCentavos : payment.amountCentavos), 0)
   return { totalCentavos, paidCentavos, balanceCentavos: totalCentavos - paidCentavos, status: totalCentavos === paidCentavos ? 'paid' : paidCentavos === 0 ? 'unpaid' : 'partially_paid' }
 }
-export async function availableSlots(doctorId, date) {
-  const schedule = await DoctorSchedule.findOne({ doctorId })
-  const { start, end } = clinicDayRange(date)
-  const booked = await Appointment.find({ doctorId, startsAt: { $gte: start, $lt: end }, status: { $in: ['scheduled', 'checked_in'] } }).select('startsAt')
-  const occupied = new Set(booked.map((item) => new Date(item.startsAt).valueOf()))
+export function availableStartTimes(schedule, date, booked, durationMinutes = 30, now = Date.now()) {
   const slots = []
-  for (let minutes = 0; minutes < 1440; minutes += 30) {
+  for (let minutes = 0; minutes < 1440; minutes++) {
     const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
     const at = new Date(`${date}T${time}:00+08:00`).valueOf()
-    if (scheduleAllows(schedule, date, time) && at > Date.now() && !occupied.has(at)) slots.push(time)
+    const end = at + durationMinutes * 60000
+    if (scheduleAllows(schedule, date, time, durationMinutes) && at > now && !booked.some((item) => new Date(item.startsAt).valueOf() < end && new Date(item.endsAt).valueOf() > at)) slots.push(time)
   }
-  return { configured: !!schedule, slots }
+  return slots
+}
+export async function availableSlots(doctorId, date, durationMinutes = 30, excludeId) {
+  const schedule = await DoctorSchedule.findOne({ doctorId })
+  const { start, end } = clinicDayRange(date)
+  const booked = await Appointment.find({ doctorId, startsAt: { $lt: end }, endsAt: { $gt: start }, status: { $in: ['scheduled', 'checked_in'] }, ...(excludeId ? { _id: { $ne: excludeId } } : {}) }).select('startsAt endsAt')
+  return { configured: !!schedule, slots: availableStartTimes(schedule, date, booked, durationMinutes) }
 }

@@ -12,6 +12,7 @@ import { Appointment } from '../models/Appointment.js'
 import { DoctorSchedule, ClinicService, DiagnosticOrder, DiagnosticReport, Invoice, Invitation, AuditEvent } from '../models/Operations.js'
 import { validate } from '../validators/auth.js'
 import { recordIdSchema as id } from '../validators/records.js'
+import { durationSchema } from '../validators/appointments.js'
 import { accountInput, invitationInput, serviceInput, scheduleInput, orderInput, orderAction, reportInput, version } from '../validators/workflow.js'
 import { HttpError } from '../utils/errors.js'
 import { plain, actor, event, digest, conflict, checkVersion, saveVersion, getEncounter, availableSlots, scheduleAllows } from '../services/workflow.js'
@@ -113,7 +114,9 @@ export function operationRoutes(authService) {
   })
   router.get('/slots/:id', requirePermission('directory'), async (request, response) => {
     const date = validate(z.string().refine(validDate), request.query.date)
-    response.json(await availableSlots(request.params.id, date))
+    const durationMinutes = validate(z.string().regex(/^\d{1,4}$/).transform(Number).pipe(durationSchema).default(30), request.query.durationMinutes)
+    const excludeId = request.query.excludeId === undefined ? undefined : validate(id, request.query.excludeId)
+    response.json(await availableSlots(request.params.id, date, durationMinutes, excludeId))
   })
   router.put('/schedules/:id', requirePermission('schedule'), async (request, response) => {
     const input = validate(scheduleInput, request.body)
@@ -127,7 +130,8 @@ export function operationRoutes(authService) {
         const appointments = await Appointment.find({ doctorId: request.params.id, status: 'scheduled', startsAt: { $gt: new Date() } }).session(session)
         for (const appointment of appointments) {
           const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(appointment.startsAt)
-          if (!scheduleAllows(input, clinicDate(appointment.startsAt), time)) throw new HttpError(409, 'These hours conflict with an existing future appointment. Reschedule or cancel that booking first.')
+          const durationMinutes = (appointment.endsAt.valueOf() - appointment.startsAt.valueOf()) / 60000
+          if (!scheduleAllows(input, clinicDate(appointment.startsAt), time, durationMinutes)) throw new HttpError(409, 'These hours conflict with an existing future appointment. Reschedule or cancel that booking first.')
         }
         if (!record) record = new DoctorSchedule({ doctorId: request.params.id })
         record.weekly = input.weekly; record.leave = input.leave; record.updatedBy = request.auth.user.id; record.revision += 1

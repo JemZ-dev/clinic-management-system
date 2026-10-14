@@ -39,7 +39,7 @@ function AppointmentDetails({ record, reload, refreshing }) {
     <section className="workspace-section" aria-labelledby="appointment-details-title"><div className="section-heading"><h2 id="appointment-details-title">Booking</h2><AppointmentStatus status={record.status} /></div><dl className="record-details">
       <div><dt>Patient</dt><dd>{record.patient ? <Link to={`/patients/${record.patient.id}`}>{record.patient.name}</Link> : 'Patient unavailable'}<span className="record-meta">{record.patient?.patientId}{record.patient?.archivedAt && ' · Archived'}</span></dd></div>
       <div><dt>Doctor</dt><dd>{record.doctor ? <Link to={`/doctors/${record.doctor.id}`}>{record.doctor.name}</Link> : 'Doctor unavailable'}<span className="record-meta">{record.doctor?.specialty}{record.doctor?.archivedAt && ' · Archived'}</span></dd></div>
-      <div><dt>Date</dt><dd>{formatClinicDate(record.startsAt)}</dd></div><div><dt>Time (Manila)</dt><dd>{formatClinicTimeRange(record.startsAt, record.endsAt)}<span className="record-meta">30 minutes</span></dd></div>
+      <div><dt>Date</dt><dd>{formatClinicDate(record.startsAt)}</dd></div><div><dt>Time (Manila)</dt><dd>{formatClinicTimeRange(record.startsAt, record.endsAt)}<span className="record-meta">{(new Date(record.endsAt) - new Date(record.startsAt)) / 60000} minutes</span></dd></div>
       <div className="detail-full-width"><dt>Reason for appointment</dt><dd>{record.reason || 'Not recorded'}</dd></div>
     </dl></section>
     {record.visitId && <Access permission="clinical"><p><Link to={`/visits/${record.visitId}`} state={{ backTo: `/appointments/${record.id}` }}>View saved visit</Link></p></Access>}

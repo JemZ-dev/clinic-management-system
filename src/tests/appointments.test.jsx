@@ -46,6 +46,38 @@ async function fillBooking(user) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('appointment and dashboard components', () => {
+  it('books an arbitrary start minute and chosen duration, refreshing availability for that duration', async () => {
+    const get = installGet()
+    const fallback = get.getMockImplementation()
+    get.mockImplementation((path) => path.startsWith('/operations/slots/')
+      ? Promise.resolve({ data: { configured: true, slots: ['09:17', '09:18'] } }) : fallback(path))
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ data: { record } })
+    const { user } = mount('/appointments/new')
+    await fillBooking(user)
+    const duration = screen.getByLabelText(/Duration \(minutes\)/)
+    await user.clear(duration)
+    await user.type(duration, '23')
+    await waitFor(() => expect(get.mock.calls.some(([path]) => path.includes('durationMinutes=23'))).toBe(true))
+    await screen.findByRole('option', { name: '09:17' })
+    await user.selectOptions(screen.getByLabelText('Available start times'), '09:17')
+    expect(screen.getByLabelText(/Start time/).value).toBe('09:17')
+    expect(screen.getByLabelText(/Start time/).step).toBe('60')
+    await user.click(screen.getByRole('button', { name: 'Book appointment', exact: true }))
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    expect(post.mock.calls[0][1]).toMatchObject({ time: '09:17', durationMinutes: 23 })
+  })
+
+  it('preserves the actual duration on rescheduling and displays it on the detail page', async () => {
+    const get = installGet()
+    const fallback = get.getMockImplementation()
+    get.mockImplementation((path) => path === `/appointments/${id}`
+      ? Promise.resolve({ data: { record: { ...record, endsAt: `${tomorrow}T09:23:00+08:00` } } }) : fallback(path))
+    const { router } = mount(`/appointments/${id}/edit`)
+    expect((await screen.findByLabelText(/Duration \(minutes\)/)).value).toBe('23')
+    await waitFor(() => expect(get.mock.calls.some(([path]) => path.includes(`excludeId=${id}`))).toBe(true))
+    await router.navigate(`/appointments/${id}`)
+    expect(await screen.findByText('23 minutes')).toBeTruthy()
+  })
   it('confirms discarding a new patient while preserving the appointment', async () => {
     installGet()
     const post = vi.spyOn(api, 'post')

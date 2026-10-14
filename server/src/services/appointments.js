@@ -5,7 +5,7 @@ import { Appointment } from '../models/Appointment.js'
 import { Patient } from '../models/Patient.js'
 import { Doctor } from '../models/Doctor.js'
 import { HttpError } from '../utils/errors.js'
-import { appointmentStart, clinicDate, SLOT_MS } from '../utils/clinicTime.js'
+import { appointmentStart, clinicDate } from '../utils/clinicTime.js'
 
 const transitions = {
   scheduled: ['checked_in', 'cancelled', 'no_show'],
@@ -49,7 +49,20 @@ async function bookingDetails(data, now) {
   if (!patient || patient.archivedAt) fields.patientId = 'Choose an active patient.'
   if (!doctor || doctor.archivedAt) fields.doctorId = 'Choose an active doctor.'
   if (Object.keys(fields).length) throw new HttpError(400, 'Please check the selected patient and doctor.', fields)
-  return { patientId: data.patientId, doctorId: data.doctorId, startsAt, endsAt: new Date(startsAt.valueOf() + SLOT_MS), reason: data.reason }
+  return { patientId: data.patientId, doctorId: data.doctorId, startsAt, endsAt: new Date(startsAt.valueOf() + (data.durationMinutes ?? 30) * 60000), reason: data.reason }
+}
+
+// Called after reserving the doctor's schedule in the same transaction. That
+// shared write serializes bookings, including ones with different start times.
+export async function assertNoBookingOverlap(details, session, excludeId) {
+  const query = {
+    doctorId: details.doctorId, status: { $in: ['scheduled', 'checked_in'] },
+    startsAt: { $lt: details.endsAt }, endsAt: { $gt: details.startsAt },
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+  }
+  if (await Appointment.exists(query).session(session)) {
+    throw new HttpError(409, 'This doctor has another appointment during the selected time. Choose another time or shorten the duration.', { time: 'This appointment overlaps another booking.' })
+  }
 }
 
 function slotError(error) {
@@ -62,7 +75,8 @@ export async function createAppointment(data, userId, now = new Date()) {
   try {
     let appointment
     await mongoose.connection.transaction(async (session) => {
-      await reserveSchedule(data.doctorId, data.date, data.time, session)
+      await reserveSchedule(data.doctorId, data.date, data.time, session, data.durationMinutes ?? 30)
+      await assertNoBookingOverlap(details, session)
       ;[appointment] = await Appointment.create([{ ...details, status: 'scheduled', createdBy: userId, updatedBy: userId, statusHistory: [{ status: 'scheduled', at: now, by: userId }] }], { session })
       if (data.followUpEncounterId) {
         const linked = await Encounter.updateOne({ _id: data.followUpEncounterId, stage: 'finished', patientId: data.patientId, doctorId: data.doctorId, followUpAppointmentId: null }, { $set: { followUpAppointmentId: appointment.id }, $inc: { __v: 1 } }, { session })
@@ -77,10 +91,12 @@ export async function updateAppointment(id, data, userId, now = new Date()) {
   const existing = await getAppointment(id)
   if (existing.__v !== data.version) throw new HttpError(409, 'This appointment changed. Open the latest appointment before saving again.')
   if (existing.status !== 'scheduled') throw new HttpError(409, 'Only scheduled appointments can be rescheduled or edited.')
+  data = { ...data, durationMinutes: data.durationMinutes ?? (existing.endsAt.valueOf() - existing.startsAt.valueOf()) / 60000 }
   const details = await bookingDetails(data, now)
   try {
     await mongoose.connection.transaction(async (session) => {
-      await reserveSchedule(data.doctorId, data.date, data.time, session)
+      await reserveSchedule(data.doctorId, data.date, data.time, session, data.durationMinutes ?? 30)
+      await assertNoBookingOverlap(details, session, id)
       const result = await Appointment.findOneAndUpdate({ _id: id, __v: data.version, status: 'scheduled' }, {
         $set: { ...details, updatedBy: userId }, $inc: { __v: 1 },
       }, { session, returnDocument: 'after', runValidators: true })

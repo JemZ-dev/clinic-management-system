@@ -3,7 +3,7 @@ import test from 'node:test'
 import { can } from '../../shared/permissions.js'
 import { assessmentInput, scheduleInput, accountInput, invitationInput, paymentInput } from '../src/validators/workflow.js'
 import { paymentCentavos, paymentErrors } from '../../shared/paymentValidation.js'
-import { scheduleAllows, invoiceTotals } from '../src/services/workflow.js'
+import { availableStartTimes, scheduleAllows, invoiceTotals } from '../src/services/workflow.js'
 import { decodeReport } from '../src/routes/operations.js'
 import { requireStaff } from '../src/middleware/requireStaff.js'
 
@@ -70,10 +70,26 @@ test('assessment accepts documented omissions and rejects partial blood pressure
 test('schedules enforce full slot duration, breaks, leave, and non-overlapping periods', () => {
   const schedule = { weekly: [{ day: 1, start: '09:00', end: '12:00' }, { day: 1, start: '13:00', end: '17:00' }], leave: [] }
   assert.equal(scheduleAllows(schedule, '2026-10-19', '11:30'), true)
+  assert.equal(scheduleAllows(schedule, '2026-10-19', '11:37', 23), true)
+  assert.equal(scheduleAllows(schedule, '2026-10-19', '11:37', 24), false)
+  assert.equal(scheduleAllows(schedule, '2026-10-19', '12:45', 30), false)
+  assert.equal(scheduleInput.safeParse({ weekly: [{ day: 1, start: '09:07', end: '12:23' }], leave: [] }).success, true)
   assert.equal(scheduleAllows(schedule, '2026-10-19', '12:00'), false)
   assert.equal(scheduleAllows(schedule, '2026-10-19', '17:00'), false)
   assert.equal(scheduleAllows({ ...schedule, leave: [{ from: '2026-10-19', through: '2026-10-20' }] }, '2026-10-19', '10:00'), false)
   assert.equal(scheduleInput.safeParse({ ...schedule, weekly: [...schedule.weekly, { day: 1, start: '11:00', end: '13:00' }] }).success, false)
+})
+
+test('available times use every minute and the full duration around existing bookings and breaks', () => {
+  const date = '2026-10-19'
+  const schedule = { weekly: [{ day: 1, start: '09:07', end: '10:00' }, { day: 1, start: '10:15', end: '11:00' }], leave: [] }
+  const bookings = [{ startsAt: `${date}T09:25:00+08:00`, endsAt: `${date}T09:45:00+08:00` }]
+  const slots = availableStartTimes(schedule, date, bookings, 10, 0)
+  assert.equal(slots[0], '09:07')
+  for (const time of ['09:15', '09:45', '09:50', '10:15', '10:50']) assert.ok(slots.includes(time), time)
+  for (const time of ['09:16', '09:25', '09:44', '09:51', '10:00', '10:14', '10:51']) assert.equal(slots.includes(time), false, time)
+  assert.deepEqual(availableStartTimes({ ...schedule, leave: [{ from: date, through: date }] }, date, [], 10, 0), [])
+  assert.deepEqual(availableStartTimes(schedule, date, [], 10, Date.parse(`${date}T23:00:00+08:00`)), [])
 })
 test('financial totals preserve voids and refunds in integer centavos', () => {
   const invoice = { lines: [{ quantity: 2, unitCentavos: 12550 }, { quantity: 1, unitCentavos: 5000, voided: true }], payments: [{ amountCentavos: 20000 }, { amountCentavos: 5000, refund: true }] }
