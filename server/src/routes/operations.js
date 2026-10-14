@@ -225,6 +225,7 @@ export function operationRoutes(authService) {
     assertAssigned(request.auth.user, order.doctorId)
     const report = await DiagnosticReport.findById(request.params.id).select('+bytes')
     if (!report) throw new HttpError(404, 'Report not found.')
+    if (process.env.VERCEL === '1' && report.bytes.length > 4400000) throw new HttpError(413, 'This older report exceeds the hosted download limit. Download it using the local clinic backend.')
     const extension = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg' }[report.mime]
     response.set({ 'Content-Type': report.mime, 'Content-Disposition': `attachment; filename="report-${report.id}.${extension}"`, 'X-Content-Type-Options': 'nosniff' }).send(report.bytes)
   })
@@ -234,6 +235,6 @@ export function decodeReport(input) {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.content)) throw new HttpError(400, 'Invalid report encoding.')
   const bytes = Buffer.from(input.content, 'base64')
   const valid = input.mime === 'application/pdf' ? bytes.subarray(0, 5).toString() === '%PDF-' : input.mime === 'image/png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-  if (!valid || bytes.length > 5 * 1024 * 1024) throw new HttpError(400, 'Use a PDF, PNG, or JPEG report of at most 5 MB with a matching file type.')
+  if (!valid || bytes.length > 3 * 1024 * 1024) throw new HttpError(400, 'Use a PDF, PNG, or JPEG report of at most 3 MB with a matching file type.')
   return bytes
 }

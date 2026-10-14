@@ -2,6 +2,7 @@ import { loadEnvFile } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 export function loadLocalEnvironment() {
+  if (process.env.VERCEL === '1') return
   const path = fileURLToPath(new URL('../../.env', import.meta.url))
   try {
     loadEnvFile(path)

@@ -6,14 +6,18 @@ mongoose.connection.on('error', () => {
   console.error('MongoDB connection error.')
 })
 
+let connecting
 export async function connectDatabase({ uri, dbName }) {
-  await mongoose.connect(uri, {
-    dbName,
-    serverSelectionTimeoutMS: 10000,
-    connectTimeoutMS: 10000,
-    maxPoolSize: 10,
-  })
-  await pingDatabase()
+  if (mongoose.connection.readyState === 1) return
+  if (!connecting) {
+    connecting = mongoose.connect(uri, {
+      dbName,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+    }).then(pingDatabase).finally(() => { connecting = undefined })
+  }
+  await connecting
 }
 
 export async function pingDatabase() {

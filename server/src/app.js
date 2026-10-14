@@ -13,12 +13,13 @@ import { HttpError } from './utils/errors.js'
 import { operationRoutes } from './routes/operations.js'
 import { encounterRoutes, billingRoutes } from './routes/encounters.js'
 
-export function createApp({ pingDatabase, authService, config }) {
+export function createApp({ pingDatabase, authService, config, trustProxy = false }) {
   const app = express()
   app.disable('x-powered-by')
+  app.set('trust proxy', trustProxy)
   app.use(helmet())
   app.use(cookieParser())
-  app.use('/api/operations/orders/:id/reports', express.json({ limit: '7mb' }))
+  app.use('/api/operations/orders/:id/reports', express.json({ limit: '4400kb' }))
   app.use(express.json({ limit: '100kb' }))
   app.use('/api', (_request, response, next) => {
     response.set('Cache-Control', 'no-store')

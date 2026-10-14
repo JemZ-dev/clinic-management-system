@@ -19,7 +19,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['server/**/*.js', 'dev/**/*.js', '*.config.js'],
+    files: ['server/**/*.js', 'api/**/*.js', 'dev/**/*.js', '*.config.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: globals.node },
     rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_' }] },

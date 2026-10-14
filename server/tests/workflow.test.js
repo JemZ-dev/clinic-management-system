@@ -100,3 +100,13 @@ test('report uploads validate size and file signature rather than trusting MIME 
   assert.throws(() => decodeReport({ mime: 'application/pdf', content: Buffer.from('<script>bad</script>').toString('base64') }))
   assert.throws(() => decodeReport({ mime: 'image/png', content: 'bad data' }))
 })
+
+
+test('3 MiB reports fit the hosted JSON limit and larger files are rejected', () => {
+  const bytes = Buffer.alloc(3 * 1024 * 1024, 65)
+  bytes.write('%PDF-')
+  const input = { mime: 'application/pdf', content: bytes.toString('base64') }
+  assert.equal(decodeReport(input).length, bytes.length)
+  assert.ok(Buffer.byteLength(JSON.stringify({ ...input, name: 'report.pdf', provider: 'Clinic', reportDate: '2026-10-15', version: 1 })) < 4400000)
+  assert.throws(() => decodeReport({ ...input, content: Buffer.concat([bytes, Buffer.from('x')]).toString('base64') }), /at most 3 MB/)
+})

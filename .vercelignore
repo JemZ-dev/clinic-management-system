@@ -1,0 +1,14 @@
+.env
+.env.*
+server/.env
+server/.env.*
+.git
+.serena
+.vercel
+node_modules
+server/node_modules
+dist
+*.log
+server/integration
+server/tests
+src/tests
