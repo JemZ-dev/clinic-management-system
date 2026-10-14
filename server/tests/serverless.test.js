@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { createApp } from '../src/app.js'
-import { createServerlessHandler } from '../src/services/serverless.js'
+import { createServerlessHandler, normalizeServerlessQuery } from '../src/services/serverless.js'
 
 test('concurrent cold requests share initialization and warm requests keep the app', async () => {
   let starts = 0, connections = 0
@@ -75,4 +75,51 @@ test('Vercel installs both packages and routes API before the React fallback', a
   const fallback = new RegExp(`^${config.rewrites[2].source}$`)
   for (const path of ['/patients', '/appointments/new', '/queue/record']) assert.equal(fallback.test(path), true)
   for (const path of ['/api', '/api/unknown', '/assets/file.js']) assert.equal(fallback.test(path), false)
+})
+
+
+import { diagnosticListSchema } from '../src/services/diagnosticDirectory.js'
+import { Encounter } from '../src/models/Encounter.js'
+import { DiagnosticOrder } from '../src/models/Operations.js'
+
+test('Vercel routing metadata does not become a directory filter', async (t) => {
+  t.mock.method(Encounter, 'countDocuments', async () => 0)
+  t.mock.method(Encounter, 'find', () => ({ sort: () => ({ skip: () => ({ limit: async () => [] }) }) }))
+  t.mock.method(DiagnosticOrder, 'aggregate', async () => [{ count: [], records: [] }])
+  const app = createApp({ pingDatabase: async () => {}, config: { appOrigin: 'https://clinic.example.test' }, authService: {
+    authenticate: async () => ({ user: { id: 'test-user', role: 'admin', active: true } }),
+  } })
+  const handler = createServerlessHandler({ initialize: async () => app, ensureConnected: async () => {} })
+  const server = createServer((request, response) => {
+    const original = Object.fromEntries(new URL(request.url, 'http://localhost').searchParams)
+    Object.defineProperty(request, 'query', { configurable: true, get: () => original })
+    return handler(request, response)
+  }).listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const root = `http://127.0.0.1:${server.address().port}`
+  const headers = { Cookie: 'clinic_session=fictional' }
+  for (const path of [
+    '/api/operations/orders?q=&status=all&category=all&provider=all&from=&through=&page=1&limit=10&path=operations%2Forders',
+    '/api/encounters?q=&stage=active&page=1&path=encounters',
+    '/api/encounters?q=&stage=active&page=1',
+  ]) {
+    const response = await fetch(`${root}${path}`, { headers })
+    assert.equal(response.status, 200, path)
+    assert.deepEqual((await response.json()).records, [])
+  }
+  const invalid = await fetch(`${root}/api/encounters?page=1&unexpected=value&path=encounters`, { headers })
+  assert.equal(invalid.status, 400)
+  assert.equal(diagnosticListSchema.safeParse({ path: 'operations/orders' }).success, false)
+})
+
+test('query normalization preserves filters, mismatching and repeated path parameters', () => {
+  for (const extra of ['path=not-the-route', 'path=encounters&path=encounters']) {
+    const request = { url: `/api/encounters?q=Jamie&page=2&${extra}` }
+    normalizeServerlessQuery(request)
+    assert.ok(request.url.includes(extra))
+  }
+  const request = { url: '/api/encounters?q=Jamie&page=2&path=encounters' }
+  normalizeServerlessQuery(request)
+  assert.equal(request.url, '/api/encounters?q=Jamie&page=2')
 })
