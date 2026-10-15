@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { BillingPage } from '../features/workflow/pages/ManagementPages.jsx'
+import InvoicePanel from '../features/workflow/components/InvoicePanel.jsx'
 import { api } from '../lib/api.js'
 
 afterEach(() => vi.restoreAllMocks())
@@ -31,4 +32,33 @@ it('combines patient, status, inclusive date filters, page sizes, and pagination
   await user.click(screen.getByRole('button', { name: 'Clear filters' }))
   await waitFor(() => expect(router.state.location.search).toBe(''))
   expect(screen.getByRole('searchbox').value).toBe('')
+})
+
+it('switches untouched billing forms directly and confirms only when edits would be lost', async () => {
+  vi.spyOn(api, 'get').mockImplementation(async (path) => ({ data: path.endsWith('/invoice') ? { record: {
+    version: 1, totalCentavos: 0, paidCentavos: 0, balanceCentavos: 0, lines: [], payments: [],
+  } } : { records: [] } }))
+  const router = createMemoryRouter([{ path: '/', element: <InvoicePanel encounter={{ id: 'test-visit', patientName: 'Fictional Patient', patientNumber: 'PT-TEST', arrivedAt: '2026-10-15T00:00:00Z' }} /> }])
+  render(<RouterProvider router={router} />)
+  const user = userEvent.setup()
+  await user.selectOptions(await screen.findByLabelText('Billing action'), 'charge')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(await screen.findByLabelText(/Service/)).toBeTruthy()
+  await user.selectOptions(screen.getByLabelText('Billing action'), 'payment')
+  await user.type(screen.getByLabelText(/Amount \(PHP\)/), '100')
+  await user.selectOptions(screen.getByLabelText('Billing action'), 'refund')
+  expect(await screen.findByRole('dialog')).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(screen.getByLabelText('Billing action').value).toBe('payment')
+  expect(screen.getByLabelText(/Amount \(PHP\)/).value).toBe('100.00')
+  await user.selectOptions(screen.getByLabelText('Billing action'), 'refund')
+  await user.click(await screen.findByRole('button', { name: 'Discard changes' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(screen.getByLabelText('Billing action').value).toBe('refund')
+  expect(screen.getByLabelText(/Amount \(PHP\)/).value).toBe('')
+  await user.selectOptions(screen.getByLabelText('Billing action'), 'payment')
+  await user.type(screen.getByLabelText('Payment reference'), 'test')
+  await user.clear(screen.getByLabelText('Payment reference'))
+  await user.selectOptions(screen.getByLabelText('Billing action'), 'charge')
+  expect(screen.queryByRole('dialog')).toBeNull()
 })
